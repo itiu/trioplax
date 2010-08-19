@@ -14,7 +14,7 @@ private import trioplax.Log;
 private import trioplax.triple;
 private import trioplax.TripleStorage;
 
-private import trioplax.memory.HashMap;
+private import trioplax.memory.TripleHashMap;
 private import trioplax.memory.IndexException;
 
 private Locale layout;
