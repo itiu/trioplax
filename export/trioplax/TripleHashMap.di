@@ -1,5 +1,5 @@
 // D import file generated from 'src/trioplax/memory/TripleHashMap.d'
-module trioplax.memory.HashMap;
+module trioplax.memory.TripleHashMap;
 private 
 {
     import tango.stdc.stdlib;

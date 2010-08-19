@@ -26,7 +26,7 @@ private import mongo;
 private import tango.stdc.stdlib: calloc, free;
 
 private import trioplax.memory.TripleStorageMemory;
-private import trioplax.memory.HashMap;
+private import trioplax.memory.TripleHashMap;
 private import trioplax.memory.IndexException;
 
 class TripleStorageMongoDB: TripleStorage

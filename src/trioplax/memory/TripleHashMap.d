@@ -1,4 +1,4 @@
-module trioplax.memory.HashMap;
+module trioplax.memory.TripleHashMap;
 
 private import tango.stdc.stdlib: calloc;
 private import tango.stdc.stdlib: malloc;
