@@ -456,7 +456,8 @@ class TripleStorageMemory: TripleStorage
 					char[] p1 = look_predicate_p1_on_idx_s1ppoo[i];
 					char[] p2 = look_predicate_p2_on_idx_s1ppoo[i];
 
-					// найдем через субьекта, O фактов P1 и P2
+					// найдем через субьекта, O1 и O2, фактов P1 и P2
+					log.trace ("найдем через субьекта, O1 и O2, фактов P1={} и P2={}", p1, p2);
 					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p1, null, dummy);
 					if(listS !is null)
 					{
