@@ -19,9 +19,7 @@ interface TripleStorage
 	public void setPredicatesToS1PPOO(char[] P1, char[] P2, char[] _store_predicate_in_list_on_idx_s1ppoo);
 
 	public void set_stat_info_logging(bool flag);		
-	public void set_log_query_mode (bool on_off);
-//	public void set_apoptosis_mode (bool on_off);
-	
+	public void set_log_query_mode (bool on_off);	
 	/////////////////////////////////////////	
 	
 	public void release_all_lists();

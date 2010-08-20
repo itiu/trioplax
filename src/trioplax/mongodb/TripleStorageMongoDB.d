@@ -83,7 +83,7 @@ class TripleStorageMongoDB: TripleStorage
 			cache_query_result.set_log_query_mode (log_query);
 
 			//			cache_query_result.f_trace_addTriple = true;
-			list_query = new HashMap("list_query", 10_000, 1_000_000, 5);
+			list_query = new HashMap("list_query", 100_000, 1_000_000, 5);
 			//			S1PPOO_IDX = new HashMap("S1PPOO_IDX", 10_000, 1_000_000, 5);
 		}
 
@@ -873,7 +873,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public bool removeTriple(char[] s, char[] p, char[] o)
 	{
-		log.trace("TripleStorage:remove triple");
+		log.trace("TripleStorageMongoDB:remove triple");
 		
 		if(s is null || p is null || o is null)
 		{
@@ -975,7 +975,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public int addTriple(char[] s, char[] p, char[] o)
 	{
-		log.trace("TripleStorage:add triple");
+		log.trace("TripleStorageMongoDB:add triple");
 		bson_buffer bb;
 
 		bson op;

@@ -301,7 +301,7 @@ class TripleStorageMemory: TripleStorage
 
 	public bool removeTriple(char[] s, char[] p, char[] o)
 	{
-		log.trace("TripleStorage:add triple");
+		log.trace("TripleStorageMemory:remove triple");
 
 		if(s.length == 0 && p.length == 0 && o.length == 0)
 		{
@@ -469,7 +469,7 @@ class TripleStorageMemory: TripleStorage
 						o2 = fromStringz(listS.triple.o);
 					}
 
-					//					log.trace ("o1={}, o2={}", o1, o2);
+					log.trace ("look_predicate_pp_on_idx_s1ppoo[i]={}, o1={}, o2={}", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
 
 					idx_s1ppoo.remove_triple_from_list(removed_triple, look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
 					is_deleted_from_list = true;
@@ -478,11 +478,11 @@ class TripleStorageMemory: TripleStorage
 
 			}
 			
-			if (is_deleted_from_list == false)
-			{
-				log.trace ("Exception: remove from index S1PPOO FAIL!");
-				throw new Exception ("remove from index S1PPOO FAIL!");
-			}
+//			if (is_deleted_from_list == false)
+//			{
+//				log.trace ("Exception: remove from index S1PPOO FAIL!");
+//				throw new Exception ("remove from index S1PPOO FAIL!");
+//			}
 		}
 
 		if(idx_sp !is null)
@@ -519,7 +519,7 @@ class TripleStorageMemory: TripleStorage
 
 	public int addTriple(char[] s, char[] p, char[] o)
 	{
-		log.trace("TripleStorage:add triple");
+		log.trace("TripleStorageMemory:add triple");
 		
 		try
 		{
