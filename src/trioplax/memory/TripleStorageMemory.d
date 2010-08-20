@@ -301,6 +301,8 @@ class TripleStorageMemory: TripleStorage
 
 	public bool removeTriple(char[] s, char[] p, char[] o)
 	{
+		log.trace("TripleStorage:add triple");
+
 		if(s.length == 0 && p.length == 0 && o.length == 0)
 		{
 			INFO_remove_triple_from_list = false;
@@ -517,6 +519,8 @@ class TripleStorageMemory: TripleStorage
 
 	public int addTriple(char[] s, char[] p, char[] o)
 	{
+		log.trace("TripleStorage:add triple");
+		
 		try
 		{
 

@@ -873,6 +873,8 @@ class TripleStorageMongoDB: TripleStorage
 
 	public bool removeTriple(char[] s, char[] p, char[] o)
 	{
+		log.trace("TripleStorage:remove triple");
+		
 		if(s is null || p is null || o is null)
 		{
 			throw new Exception("remove triple:s is null || p is null || o is null");
@@ -973,7 +975,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public int addTriple(char[] s, char[] p, char[] o)
 	{
-		log.trace("TripleStorage:add Triple");
+		log.trace("TripleStorage:add triple");
 		bson_buffer bb;
 
 		bson op;
