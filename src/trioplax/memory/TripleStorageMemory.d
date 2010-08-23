@@ -301,7 +301,7 @@ class TripleStorageMemory: TripleStorage
 
 	public bool removeTriple(char[] s, char[] p, char[] o)
 	{
-		log.trace("TripleStorageMemory:remove triple");
+		log.trace("TripleStorageMemory:remove triple <{}><{}>\"{}\"", s, p, o);
 
 		if(s.length == 0 && p.length == 0 && o.length == 0)
 		{
@@ -335,6 +335,149 @@ class TripleStorageMemory: TripleStorage
 
 		//		log.trace("removing triple <{}><{}>\"{}\"", fromStringz(removed_triple.s), fromStringz(removed_triple.p), fromStringz(removed_triple.o));
 
+		if(idx_s1ppoo !is null)
+		{
+			bool is_deleted_from_list = false;
+			// !!! store_predicate_in_list_on_idx_s1ppoo
+			// проверим удаляемую запись на соответствие установленных предикатов для индекса sppoo [setPredicatesToS1PPOO]					
+			for(int i = 0; i < count_look_predicate_on_idx_s1ppoo; i++)
+			{
+				if(p == look_predicate_p1_on_idx_s1ppoo[i])
+				{
+					log.trace("A: remove from index s1ppoo (p == look_predicate_p1_on_idx_s1ppoo[{})", i);
+
+					char[] o1 = o;
+					char[] p1 = p;
+					char[] p2 = look_predicate_p2_on_idx_s1ppoo[i];
+
+					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p2, null, dummy);
+					if(listS !is null)
+					{
+						char[] o2 = fromStringz(listS.triple.o);
+
+						//						log.trace("remove from index sppoo A: p1 = {}, p2 = {}", p1, p2);
+						//						log.trace("### [{}] [{}] [{}]", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
+
+						listS = idx_s1ppoo.get(look_predicate_pp_on_idx_s1ppoo[i].ptr, o1.ptr, o2.ptr, dummy);
+						//						log.trace("#s1ppoo content:");
+						//						print_list_triple(listS);
+
+						// вторая часть pp для этого субьекта успешно была найдена, переходим к удалению из индекса
+						Triple* triple1;
+						{
+							while(listS !is null)
+							{
+								triple1 = listS.triple;
+								if(triple1.s !is null)
+								{
+									if(strcmp(s.ptr, triple1.s) == 0)
+									{
+										//										log.trace("found: <{}><{}>\"{}\"", fromStringz(triple1.s), fromStringz(triple1.p), fromStringz(triple1.o));
+										break;
+									}
+								}
+								listS = listS.next_triple_list_element;
+							}
+						}
+
+						if(triple1 !is null)
+						{
+							//							log.trace("#! list before remove:");
+							//							listS = idx_s1ppoo.get(look_predicate_pp_on_idx_s1ppoo[i].ptr, o1.ptr, o2.ptr, dummy);
+							//							print_list_triple(listS);
+							log.trace("A: remove from index s1ppoo s1={} pp = {}, oo = {}", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
+							log.trace("A: remove triple: <{}><{}>\"{}\"", fromStringz(triple1.s), fromStringz(triple1.p), fromStringz(triple1.o));
+
+							idx_s1ppoo.INFO_remove_triple_from_list = INFO_remove_triple_from_list;
+							idx_s1ppoo.remove_triple_from_list(triple1, look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
+							is_deleted_from_list = true;
+							//							log.trace("#! list after remove:");
+							//							listS = idx_s1ppoo.get(look_predicate_pp_on_idx_s1ppoo[i].ptr, o1.ptr, o2.ptr, dummy);
+							//							print_list_triple(listS);
+						}
+					}
+
+				}
+				else if(p == look_predicate_p2_on_idx_s1ppoo[i])
+				{
+					log.trace("B: remove from index s1ppoo (p == look_predicate_p2_on_idx_s1ppoo[{})", i);
+
+					char[] o2 = o;
+					char[] p2 = p;
+					char[] p1 = look_predicate_p1_on_idx_s1ppoo[i];
+
+					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p1, null, dummy);
+					if(listS !is null)
+					{
+						char[] o1 = fromStringz(listS.triple.o);
+
+
+						listS = idx_s1ppoo.get(look_predicate_pp_on_idx_s1ppoo[i].ptr, o1.ptr, o2.ptr, dummy);
+
+						// первая часть pp для этого субьекта успешно была найдена, переходим к удалению из индекса
+						Triple* triple1;
+						{
+							while(listS !is null)
+							{
+								triple1 = listS.triple;
+								if(triple1.s !is null)
+								{
+									if(strcmp(s.ptr, triple1.s) == 0)
+									{
+										break;
+									}
+								}
+								listS = listS.next_triple_list_element;
+							}
+						}
+
+						if(triple1 !is null)
+						{
+							log.trace("B: remove from index s1ppoo s1={} pp = {}, oo = {}", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
+							log.trace("B: remove triple: <{}><{}>\"{}\"", fromStringz(triple1.s), fromStringz(triple1.p), fromStringz(triple1.o));
+
+							idx_s1ppoo.INFO_remove_triple_from_list = INFO_remove_triple_from_list;
+							idx_s1ppoo.remove_triple_from_list(triple1, look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
+						}
+					}
+
+				}
+				else if(p == store_predicate_in_list_on_idx_s1ppoo[i])
+				{
+					log.trace("C: remove from index s1ppoo");
+					char[] o1;
+					char[] o2;
+					char[] p1 = look_predicate_p1_on_idx_s1ppoo[i];
+					char[] p2 = look_predicate_p2_on_idx_s1ppoo[i];
+
+					// найдем через субьекта, O1 и O2, фактов P1 и P2
+					log.trace ("найдем o1, where s={} p={} o=* ", s, p1);
+					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p1, null, dummy);
+					if(listS !is null)
+					{
+						log.trace ("#1");
+						o1 = fromStringz(listS.triple.o);
+					}
+
+					log.trace ("найдем o2, where s={} p={} o=* ", s, p2);
+					listS = idx_sp.get(cast(char*) s, cast(char*) p2, null, dummy);
+					if(listS !is null)
+					{
+						log.trace ("#2");
+						o2 = fromStringz(listS.triple.o);
+					}
+
+					log.trace ("look_predicate_pp_on_idx_s1ppoo[i]={}, o1={}, o2={}", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
+
+					idx_s1ppoo.remove_triple_from_list(removed_triple, look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
+					is_deleted_from_list = true;
+
+				}
+
+			}
+			
+		}
+
 		if(idx_s !is null)
 		{
 			idx_s.INFO_remove_triple_from_list = INFO_remove_triple_from_list;
@@ -364,128 +507,7 @@ class TripleStorageMemory: TripleStorage
 			idx_so.INFO_remove_triple_from_list = INFO_remove_triple_from_list;
 			idx_so.remove_triple_from_list(removed_triple, s, o, null);
 		}
-
-		if(idx_s1ppoo !is null)
-		{
-			bool is_deleted_from_list = false;
-			// !!! store_predicate_in_list_on_idx_s1ppoo
-			// проверим удаляемую запись на соответствие установленных предикатов для индекса sppoo [setPredicatesToS1PPOO]					
-			for(int i = 0; i < count_look_predicate_on_idx_s1ppoo; i++)
-			{
-				if(p == look_predicate_p1_on_idx_s1ppoo[i])
-				{
-					log.trace("remove triple <{}><{}>\"{}\"", s, p, o);
-					log.trace("remove from index s1ppoo A:[{}]", p);
-
-					char[] o1 = o;
-					char[] p1 = p;
-					char[] p2 = look_predicate_p2_on_idx_s1ppoo[i];
-
-					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p2, null, dummy);
-					if(listS !is null)
-					{
-						char[] o2 = fromStringz(listS.triple.o);
-
-						//						log.trace("remove from index sppoo A: p1 = {}, p2 = {}", p1, p2);
-						//						log.trace("### [{}] [{}] [{}]", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
-
-						listS = idx_s1ppoo.get(look_predicate_pp_on_idx_s1ppoo[i].ptr, o1.ptr, o2.ptr, dummy);
-						//						log.trace("#s1ppoo content:");
-						//						print_list_triple(listS);
-
-						// вторая часть p2 для этого субьекта успешно была найдена, переходим к удалению из индекса
-						Triple* triple1;
-						{
-							while(listS !is null)
-							{
-								triple1 = listS.triple;
-								if(triple1.s !is null)
-								{
-									if(strcmp(s.ptr, triple1.s) == 0)
-									{
-										//										log.trace("found: <{}><{}>\"{}\"", fromStringz(triple1.s), fromStringz(triple1.p), fromStringz(triple1.o));
-										break;
-									}
-								}
-								listS = listS.next_triple_list_element;
-							}
-						}
-
-						if(triple1 !is null)
-						{
-							//							log.trace("#! list before remove:");
-							//							listS = idx_s1ppoo.get(look_predicate_pp_on_idx_s1ppoo[i].ptr, o1.ptr, o2.ptr, dummy);
-							//							print_list_triple(listS);
-
-							idx_s1ppoo.INFO_remove_triple_from_list = INFO_remove_triple_from_list;
-							idx_s1ppoo.remove_triple_from_list(triple1, look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
-							is_deleted_from_list = true;
-							//							log.trace("#! list after remove:");
-							//							listS = idx_s1ppoo.get(look_predicate_pp_on_idx_s1ppoo[i].ptr, o1.ptr, o2.ptr, dummy);
-							//							print_list_triple(listS);
-						}
-					}
-
-				}
-				else if(p == look_predicate_p2_on_idx_s1ppoo[i])
-				{
-					log.trace("remove from index s1ppoo B:[{}]", p);
-
-					char[] o2 = o;
-					char[] p2 = p;
-					char[] p1 = look_predicate_p1_on_idx_s1ppoo[i];
-
-					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p1, null, dummy);
-					if(listS !is null)
-					{
-						char[] o1 = fromStringz(listS.triple.o);
-
-						//						log.trace("remove from index sppoo B: p1 = {}, p2 = {}", p1, p2);
-						// вторая часть p2 для этого субьекта успешно была найдена, переходим к удалению из индекса
-						idx_s1ppoo.INFO_remove_triple_from_list = INFO_remove_triple_from_list;
-						idx_s1ppoo.remove_triple_from_list(removed_triple, look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
-						is_deleted_from_list = true;
-					}
-
-				}
-				else if(p == store_predicate_in_list_on_idx_s1ppoo[i])
-				{
-					log.trace("remove from index s1ppoo C:[{}]", p);
-					char[] o1;
-					char[] o2;
-					char[] p1 = look_predicate_p1_on_idx_s1ppoo[i];
-					char[] p2 = look_predicate_p2_on_idx_s1ppoo[i];
-
-					// найдем через субьекта, O1 и O2, фактов P1 и P2
-					log.trace ("найдем через субьекта, O1 и O2, фактов P1={} и P2={}", p1, p2);
-					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p1, null, dummy);
-					if(listS !is null)
-					{
-						o1 = fromStringz(listS.triple.o);
-					}
-
-					listS = idx_sp.get(cast(char*) s, cast(char*) p2, null, dummy);
-					if(listS !is null)
-					{
-						o2 = fromStringz(listS.triple.o);
-					}
-
-					log.trace ("look_predicate_pp_on_idx_s1ppoo[i]={}, o1={}, o2={}", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
-
-					idx_s1ppoo.remove_triple_from_list(removed_triple, look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
-					is_deleted_from_list = true;
-
-				}
-
-			}
-			
-//			if (is_deleted_from_list == false)
-//			{
-//				log.trace ("Exception: remove from index S1PPOO FAIL!");
-//				throw new Exception ("remove from index S1PPOO FAIL!");
-//			}
-		}
-
+		
 		if(idx_sp !is null)
 		{
 			idx_sp.INFO_remove_triple_from_list = INFO_remove_triple_from_list;

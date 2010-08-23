@@ -64,29 +64,13 @@ class TripleStorageMongoDB: TripleStorage
 
 	private TripleStorageMemory cache_query_result = null;
 	private HashMap list_query = null;
-	private HashMap S1PPOO_IDX = null;
 
-	char[] P1;
-	char[] P2;
-	char[] store_predicate_in_list_on_idx_s1ppoo;
+	private char[] P1;
+	private char[] P2;
+	private char[] store_predicate_in_list_on_idx_s1ppoo;
 
 	this(char[] host, int port)
 	{
-		{
-			cache_query_result = new TripleStorageMemory(100_000, 5, 1_000_000);
-			cache_query_result.set_new_index(idx_name.S, 100_000, 5, 1_000_000);
-			cache_query_result.set_new_index(idx_name.O, 100_000, 5, 1_000_000);
-			cache_query_result.set_new_index(idx_name.PO, 100_000, 5, 1_000_000);
-			cache_query_result.set_new_index(idx_name.SP, 100_000, 6, 1_000_000);
-			cache_query_result.set_new_index(idx_name.S1PPOO, 100_000, 5, 1_000_000);
-			
-			cache_query_result.set_log_query_mode (log_query);
-
-			//			cache_query_result.f_trace_addTriple = true;
-			list_query = new HashMap("list_query", 100_000, 1_000_000, 5);
-			//			S1PPOO_IDX = new HashMap("S1PPOO_IDX", 10_000, 1_000_000, 5);
-		}
-
 		triples = cast(Triple*) calloc(Triple.sizeof, max_length_pull * average_list_size);
 		strings = cast(char*) calloc(char.sizeof, max_length_pull * average_list_size * 3 * 256);
 		elements_in_list = cast(triple_list_element*) calloc(triple_list_element.sizeof, max_length_pull * average_list_size);
@@ -109,6 +93,20 @@ class TripleStorageMongoDB: TripleStorage
 			throw new Exception("failed to connect to mongodb");
 		}
 		log.trace("connect to mongodb sucessful");
+	}
+
+	public void set_cache()
+	{
+		cache_query_result = new TripleStorageMemory(300_000, 5, 10_000_000);
+		cache_query_result.set_new_index(idx_name.S, 300_000, 5, 10_000_000);
+		cache_query_result.set_new_index(idx_name.O, 300_000, 5, 10_000_000);
+		cache_query_result.set_new_index(idx_name.PO, 300_000, 5, 10_000_000);
+		cache_query_result.set_new_index(idx_name.SP, 300_000, 6, 10_000_000);
+		cache_query_result.set_new_index(idx_name.S1PPOO, 300_000, 5, 10_000_000);
+
+		cache_query_result.set_log_query_mode(log_query);
+
+		list_query = new HashMap("list_query", 300_000, 10_000_000, 5);
 	}
 
 	public void set_log_query_mode(bool on_off)
@@ -238,41 +236,46 @@ class TripleStorageMongoDB: TripleStorage
 		total_count_queries++;
 
 		triple_list_element* list_in_cache = null;
+
+		bool f_is_query_stored = false;
+
 		// проверим, был ли такой запрос закешированн
 		//		log.trace("S1PPOO is_query_in_cache? (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
 		//		list_query.f_trace_put = true;
-		int dummy;
-		triple_list_element* is_query_in_cache = list_query.get(ss1.ptr, pp1.ptr, oo1.ptr, dummy);
-		if(is_query_in_cache !is null)
+		if(list_query !is null)
 		{
-			//			log.trace("S1PPOO query_is_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-
-			//			list_in_cache = S1PPOO_IDX.get(s, p, o, dummy);
-			list_in_cache = cache_query_result.getTriplesUseIndexS1PPOO(s, p, o);
-
-			if(log_query == true)
-				logging_query("GET USE INDEX FROM CACHE", s, p, o, list_in_cache);
-
-			return list_in_cache;
-		}
-
-		bool f_is_query_stored = false;
-		//		bool fS1 = false;
-
-		if(is_query_in_cache is null)
-		{
-			log.trace("S1PPOO query_is_not_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-
-			try
+			int dummy;
+			triple_list_element* is_query_in_cache = list_query.get(ss1.ptr, pp1.ptr, oo1.ptr, dummy);
+			if(is_query_in_cache !is null)
 			{
-				list_query.put(ss1, pp1, oo1, null);
-				f_is_query_stored = true;
-				count_queries_in_cache++;
+				//			log.trace("S1PPOO query_is_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
 
-			} catch(IndexException ex)
+				//			list_in_cache = S1PPOO_IDX.get(s, p, o, dummy);
+				list_in_cache = cache_query_result.getTriplesUseIndexS1PPOO(s, p, o);
+
+				if(log_query == true)
+					logging_query("GET USE INDEX FROM CACHE", s, p, o, list_in_cache);
+
+				return list_in_cache;
+			}
+
+			//		bool fS1 = false;
+
+			if(is_query_in_cache is null)
 			{
+				log.trace("S1PPOO query_is_not_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
 
-				log.trace("S1PPOO query is not add in cache [list_query]: exception: {}", ex.message);
+				try
+				{
+					list_query.put(ss1, pp1, oo1, null);
+					f_is_query_stored = true;
+					count_queries_in_cache++;
+
+				} catch(IndexException ex)
+				{
+
+					log.trace("S1PPOO query is not add in cache [list_query]: exception: {}", ex.message);
+				}
 			}
 		}
 
@@ -510,40 +513,43 @@ class TripleStorageMongoDB: TripleStorage
 
 		triple_list_element* list_in_cache = null;
 
-		// проверим, был ли такой запрос закешированн
-		//		log.trace("is_query_in_cache? (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-		//		list_query.f_trace_put = true;
-		triple_list_element* is_query_in_cache = list_query.get(ss1.ptr, pp1.ptr, oo1.ptr, dummy);
-		if(is_query_in_cache !is null)
-		{
-			//			log.trace("query_is_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-
-			list_in_cache = cache_query_result.getTriples(s, p, o);
-
-			if(log_query == true)
-				logging_query("GET FROM CACHE", s, p, o, list_in_cache);
-
-			return list_in_cache;
-		}
-
 		bool f_is_query_stored = false;
 
-		if(is_query_in_cache is null)
+		if(list_query !is null)
 		{
-			log.trace("query_is_not_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
+			// проверим, был ли такой запрос закешированн
+			//		log.trace("is_query_in_cache? (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
+			//		list_query.f_trace_put = true;
 
-			try
+			triple_list_element* is_query_in_cache = list_query.get(ss1.ptr, pp1.ptr, oo1.ptr, dummy);
+			if(is_query_in_cache !is null)
 			{
-				list_query.put(ss1, pp1, oo1, null);
-				f_is_query_stored = true;
-				count_queries_in_cache++;
-			} catch(IndexException ex)
-			{
+				//			log.trace("query_is_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
 
-				log.trace("query is not add in cache [list_query]: exception: {}", ex.message);
+				list_in_cache = cache_query_result.getTriples(s, p, o);
+
+				if(log_query == true)
+					logging_query("GET FROM CACHE", s, p, o, list_in_cache);
+
+				return list_in_cache;
+			}
+
+			if(is_query_in_cache is null)
+			{
+				log.trace("query_is_not_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
+
+				try
+				{
+					list_query.put(ss1, pp1, oo1, null);
+					f_is_query_stored = true;
+					count_queries_in_cache++;
+				} catch(IndexException ex)
+				{
+
+					log.trace("query is not add in cache [list_query]: exception: {}", ex.message);
+				}
 			}
 		}
-
 		//		log.trace("total_count_queries={}, count_queries_in_cache={}", total_count_queries, count_queries_in_cache);
 
 		//		log.trace("GET TRIPLES <{}> <{}> \"{}\"", ss, pp, oo);
@@ -862,8 +868,8 @@ class TripleStorageMongoDB: TripleStorage
 		log_file.output.write(layout("{:yyyy-MM-dd HH:mm:ss},{} ", tm, dt.time.millis));
 
 		log_file.output.write(
-				"\n" ~ op ~ " s=[" ~ fromStringz(s) ~ "] p=[" ~ fromStringz(p) ~ "] o=[" ~ fromStringz(o) ~ "] " ~ Integer.format(
-						buff, count) ~ "\n");
+				"\n" ~ op ~ " s=[" ~ fromStringz(s) ~ "] p=[" ~ fromStringz(p) ~ "] o=[" ~ fromStringz(o) ~ "] " ~ Integer.format(buff,
+						count) ~ "\n");
 
 		print_list_triple_to_file(log_file, list);
 
@@ -874,7 +880,7 @@ class TripleStorageMongoDB: TripleStorage
 	public bool removeTriple(char[] s, char[] p, char[] o)
 	{
 		log.trace("TripleStorageMongoDB:remove triple");
-		
+
 		if(s is null || p is null || o is null)
 		{
 			throw new Exception("remove triple:s is null || p is null || o is null");
@@ -964,7 +970,7 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(cache_query_result !is null)
 			cache_query_result.removeTriple(s, p, o);
-		
+
 		if(log_query == true)
 			logging_query("REMOVE", s.ptr, p.ptr, o.ptr, null);
 
@@ -1012,11 +1018,11 @@ class TripleStorageMongoDB: TripleStorage
 			cache_query_result.addTriple(s, p, o);
 		}
 
-//		log.trace("TripleStorage:add Triple..ok");
-		
+		//		log.trace("TripleStorage:add Triple..ok");
+
 		if(log_query == true)
 			logging_query("ADD", s.ptr, p.ptr, o.ptr, null);
-		
+
 		return 0;
 	}
 
