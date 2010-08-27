@@ -867,9 +867,8 @@ class TripleStorageMongoDB: TripleStorage
 		auto dt = Clock.toDate(tm);
 		log_file.output.write(layout("{:yyyy-MM-dd HH:mm:ss},{} ", tm, dt.time.millis));
 
-		log_file.output.write(
-				"\n" ~ op ~ " s=[" ~ fromStringz(s) ~ "] p=[" ~ fromStringz(p) ~ "] o=[" ~ fromStringz(o) ~ "] " ~ Integer.format(buff,
-						count) ~ "\n");
+		log_file.output.write(op ~ "\n s=[" ~ fromStringz(s) ~ "] p=[" ~ fromStringz(p) ~ "] o=[" ~ fromStringz(o) ~ "] " ~ Integer.format(
+				buff, count) ~ "\n");
 
 		print_list_triple_to_file(log_file, list);
 
