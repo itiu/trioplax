@@ -37,12 +37,17 @@ class TripleStorageMongoDB: TripleStorage
 	private int max_length_pull = 1024 * 10;
 	private int average_list_size = 3;
 
+	private int strings_max_length = 0;
 	private char* strings = null;
-	private Triple* triples = null;
-	private triple_list_element* elements_in_list = null;
-	private triple_list_element*[] used_list = null;
-	private int last_used_element_in_pull = 0;
 	private int last_used_element_in_strings = 0;
+
+	private Triple* triples = null;
+	
+	private int elements_in_list_max_length = 0;
+	private triple_list_element* elements_in_list = null;
+	private int last_used_element_in_pull = 0;
+
+	private triple_list_element*[] used_list = null;
 
 	private char[] buff = null;
 	private const char* col = "az1";
@@ -72,9 +77,12 @@ class TripleStorageMongoDB: TripleStorage
 	this(char[] host, int port)
 	{
 		triples = cast(Triple*) calloc(Triple.sizeof, max_length_pull * average_list_size);
-		strings = cast(char*) calloc(char.sizeof, max_length_pull * average_list_size * 3 * 256);
-		elements_in_list = cast(triple_list_element*) calloc(triple_list_element.sizeof, max_length_pull * average_list_size);
-
+		strings_max_length = max_length_pull * average_list_size * 3 * 256;
+		strings = cast(char*) calloc(char.sizeof, strings_max_length);
+		
+		elements_in_list_max_length = max_length_pull * average_list_size;
+		elements_in_list = cast(triple_list_element*) calloc(triple_list_element.sizeof, elements_in_list_max_length);
+		
 		used_list = new triple_list_element*[max_length_pull];
 		last_used_element_in_pull = 0;
 
@@ -212,7 +220,6 @@ class TripleStorageMongoDB: TripleStorage
 
 	public triple_list_element* getTriplesUseIndexS1PPOO(char* s, char* p, char* o)
 	{
-		//		log.trace("getTriplesUseIndex #1 [{}] [{}] [{}]", fromStringz(s), fromStringz(p), fromStringz(o));
 
 		char ss1[];
 		char pp1[];
@@ -312,7 +319,12 @@ class TripleStorageMongoDB: TripleStorage
 
 			char* ts = null;
 			char* tp = strings + last_used_element_in_strings;
+
 			last_used_element_in_strings += p_rt.length;
+
+			if(last_used_element_in_strings > strings_max_length)
+				throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
+
 			//			char* tp = cast(char*) calloc(byte.sizeof, "mo/at/acl#rt".length + 1);
 			strncpy(tp, p_rt.ptr, p_rt.length);
 			char* to = null;
@@ -335,7 +347,10 @@ class TripleStorageMongoDB: TripleStorage
 						if(strcmp(name_key, "ss".ptr) == 0)
 						{
 							ts = strings + last_used_element_in_strings;
+
 							last_used_element_in_strings += len + 1;
+							if(last_used_element_in_strings > strings_max_length)
+								throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
 
 							//								ts = cast(char*) calloc(byte.sizeof, len + 1);
 							strcpy(ts, value);
@@ -344,6 +359,8 @@ class TripleStorageMongoDB: TripleStorage
 						{
 							to = strings + last_used_element_in_strings;
 							last_used_element_in_strings += len + 1;
+							if(last_used_element_in_strings > strings_max_length)
+								throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
 
 							//							to = cast(char*) calloc(byte.sizeof, len + 1);
 							strcpy(to, value);
@@ -364,6 +381,8 @@ class TripleStorageMongoDB: TripleStorage
 			Triple* triple = triples + last_used_element_in_pull;
 
 			last_used_element_in_pull++;
+			if (last_used_element_in_pull > elements_in_list_max_length)
+				throw new Exception ("pull is overflow");
 
 			length_list++;
 
@@ -375,8 +394,10 @@ class TripleStorageMongoDB: TripleStorage
 			prev_element = next_element;
 			if(list is null)
 			{
+				//				log.trace("getTriplesUseIndex #1 [{}] [{}] [{}]", fromStringz(s), fromStringz(p), fromStringz(o));
 				list = next_element;
 			}
+			//			log.trace ("list={:X8}, next_element={:X8}, last_used_element_in_pull={}", list, next_element, last_used_element_in_pull);  
 
 			//			Triple* triple = cast(Triple*) calloc(Triple.sizeof, 1);
 			triple.s = ts;
@@ -480,7 +501,7 @@ class TripleStorageMongoDB: TripleStorage
 		{
 			ss = fromStringz(s);
 			ss1 = ss;
-			//			log.trace("GET TRIPLES #0 len(s)={}", strlen(s));
+			//						log.trace("GET TRIPLES #0 len(s)={}", strlen(s));
 		}
 		else
 		{
@@ -491,7 +512,7 @@ class TripleStorageMongoDB: TripleStorage
 		{
 			pp = fromStringz(p);
 			pp1 = pp;
-			//			log.trace("GET TRIPLES #0 len(p)={}", strlen(p));
+			//						log.trace("GET TRIPLES #0 len(p)={}", strlen(p));
 		}
 		else
 		{
@@ -502,7 +523,7 @@ class TripleStorageMongoDB: TripleStorage
 		{
 			oo = fromStringz(o);
 			oo1 = oo;
-			//			log.trace("GET TRIPLES #0, len(o)={}", strlen(o));
+			//						log.trace("GET TRIPLES #0, len(o)={}", strlen(o));
 		}
 		else
 		{
@@ -524,19 +545,20 @@ class TripleStorageMongoDB: TripleStorage
 			triple_list_element* is_query_in_cache = list_query.get(ss1.ptr, pp1.ptr, oo1.ptr, dummy);
 			if(is_query_in_cache !is null)
 			{
-				//			log.trace("query_is_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
+				//							log.trace("query_is_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
 
 				list_in_cache = cache_query_result.getTriples(s, p, o);
 
 				if(log_query == true)
 					logging_query("GET FROM CACHE", s, p, o, list_in_cache);
 
+				//				log.trace("list_in_cache={:X8}", list_in_cache);
 				return list_in_cache;
 			}
 
 			if(is_query_in_cache is null)
 			{
-				log.trace("query_is_not_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
+				//				log.trace("query_is_not_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
 
 				try
 				{
@@ -624,6 +646,8 @@ class TripleStorageMongoDB: TripleStorage
 								//								ts = cast(char*) calloc(byte.sizeof, len + 1);
 								ts = strings + last_used_element_in_strings;
 								last_used_element_in_strings += len + 1;
+								if(last_used_element_in_strings > strings_max_length)
+									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
 
 								strcpy(ts, value);
 							}
@@ -632,6 +656,8 @@ class TripleStorageMongoDB: TripleStorage
 								//								to = cast(char*) calloc(byte.sizeof, len + 1);
 								to = strings + last_used_element_in_strings;
 								last_used_element_in_strings += len + 1;
+								if(last_used_element_in_strings > strings_max_length)
+									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
 
 								strcpy(to, value);
 							}
@@ -640,18 +666,24 @@ class TripleStorageMongoDB: TripleStorage
 								//								ts = cast(char*) calloc(byte.sizeof, strlen(s) + 1);
 								ts = strings + last_used_element_in_strings;
 								last_used_element_in_strings += strlen(s) + 1;
+								if(last_used_element_in_strings > strings_max_length)
+									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
 
 								strcpy(ts, s);
 
 								//								tp = cast(char*) calloc(byte.sizeof, strlen(name_key) + 1);
 								tp = strings + last_used_element_in_strings;
 								last_used_element_in_strings += strlen(name_key) + 1;
+								if(last_used_element_in_strings > strings_max_length)
+									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
 
 								strcpy(tp, name_key);
 
 								//								to = cast(char*) calloc(byte.sizeof, len + 1);
 								to = strings + last_used_element_in_strings;
 								last_used_element_in_strings += len + 1;
+								if(last_used_element_in_strings > strings_max_length)
+									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
 
 								strcpy(to, value);
 
@@ -664,6 +696,8 @@ class TripleStorageMongoDB: TripleStorage
 									Triple* triple = triples + last_used_element_in_pull;
 
 									last_used_element_in_pull++;
+			if (last_used_element_in_pull > elements_in_list_max_length)
+				throw new Exception ("pull is overflow");
 
 									if(prev_element !is null)
 									{
@@ -673,9 +707,11 @@ class TripleStorageMongoDB: TripleStorage
 									prev_element = next_element;
 									if(list is null)
 									{
+										//										log.trace("getTriples [{}] [{}] [{}]", fromStringz(s), fromStringz(p), fromStringz(o));
 										list = next_element;
 									}
 
+									//									log.trace ("list={:X8}, next_element={:X8}, last_used_element_in_pull={}", list, next_element, last_used_element_in_pull);  
 									//			log.trace("GET TRIPLES #10");
 
 									//									Triple* triple = cast(Triple*) calloc(Triple.sizeof, 1);
@@ -690,7 +726,7 @@ class TripleStorageMongoDB: TripleStorage
 									if(f_is_query_stored == true)
 									{
 										cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
-										log.trace("cache_query_result.addTriple");
+										//										log.trace("cache_query_result.addTriple");
 									}
 									//			log.trace("get #11, list[{:X4}], triple[{:X4}]", list, triple);
 
@@ -742,6 +778,8 @@ class TripleStorageMongoDB: TripleStorage
 				//				tp = cast(char*) calloc(byte.sizeof, strlen(p) + 1);
 				tp = strings + last_used_element_in_strings;
 				last_used_element_in_strings += strlen(p) + 1;
+				if(last_used_element_in_strings > strings_max_length)
+					throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
 
 				strcpy(tp, p);
 
@@ -750,6 +788,8 @@ class TripleStorageMongoDB: TripleStorage
 					//					to = cast(char*) calloc(byte.sizeof, strlen(o) + 1);
 					to = strings + last_used_element_in_strings;
 					last_used_element_in_strings += strlen(o) + 1;
+					if(last_used_element_in_strings > strings_max_length)
+						throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
 
 					strcpy(to, o);
 				}
@@ -765,6 +805,8 @@ class TripleStorageMongoDB: TripleStorage
 					Triple* triple = triples + last_used_element_in_pull;
 
 					last_used_element_in_pull++;
+			if (last_used_element_in_pull > elements_in_list_max_length)
+				throw new Exception ("pull is overflow");
 
 					length_list++;
 
@@ -776,8 +818,10 @@ class TripleStorageMongoDB: TripleStorage
 					prev_element = next_element;
 					if(list is null)
 					{
+						//						log.trace("getTriples [{}] [{}] [{}]", fromStringz(s), fromStringz(p), fromStringz(o));
 						list = next_element;
 					}
+					//					log.trace ("list={:X8}, next_element={:X8}, last_used_element_in_pull={}", list, next_element, last_used_element_in_pull);  
 
 					//			log.trace("GET TRIPLES #10");
 
@@ -793,7 +837,7 @@ class TripleStorageMongoDB: TripleStorage
 					if(f_is_query_stored == true)
 					{
 						cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
-						log.trace("cache_query_result.addTriple");
+						//						log.trace("cache_query_result.addTriple");
 					}
 
 					//			log.trace("get #11, list[{:X4}], triple[{:X4}]", list, triple);
@@ -838,6 +882,7 @@ class TripleStorageMongoDB: TripleStorage
 		//			cache_query_result.print_stat();
 		//		}		
 
+		//		log.trace("list={:X8}", list);
 		return list;
 	}
 
@@ -878,7 +923,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public bool removeTriple(char[] s, char[] p, char[] o)
 	{
-		log.trace("TripleStorageMongoDB:remove triple");
+		//		log.trace("TripleStorageMongoDB:remove triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\"");
 
 		if(s is null || p is null || o is null)
 		{
@@ -980,7 +1025,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public int addTriple(char[] s, char[] p, char[] o)
 	{
-		log.trace("TripleStorageMongoDB:add triple");
+		//		log.trace("TripleStorageMongoDB:add triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\"");
 		bson_buffer bb;
 
 		bson op;
@@ -1078,7 +1123,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public int get_count_form_list_triple(triple_list_element* list_iterator)
 	{
-		int count;
+		int count = 0;
 		Triple* triple;
 		if(list_iterator !is null)
 		{
@@ -1091,6 +1136,7 @@ class TripleStorageMongoDB: TripleStorage
 				}
 
 				list_iterator = list_iterator.next_triple_list_element;
+
 			}
 		}
 		return count;

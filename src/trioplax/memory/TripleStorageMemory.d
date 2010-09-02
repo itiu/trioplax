@@ -300,7 +300,7 @@ class TripleStorageMemory: TripleStorage
 
 	public bool removeTriple(char[] s, char[] p, char[] o)
 	{
-		log.trace("TripleStorageMemory:remove triple <{}><{}>\"{}\"", s, p, o);
+//		log.trace("TripleStorageMemory:remove triple <{}><{}>\"{}\"", s, p, o);
 
 		if(s.length == 0 && p.length == 0 && o.length == 0)
 		{
@@ -541,7 +541,7 @@ class TripleStorageMemory: TripleStorage
 
 	public int addTriple(char[] s, char[] p, char[] o)
 	{
-		log.trace("TripleStorageMemory:add triple");
+//		log.trace("TripleStorageMemory:add triple <{}><{}>\"{}\"", s, p, o);
 		
 		try
 		{
@@ -579,6 +579,18 @@ class TripleStorageMemory: TripleStorage
 
 				triple_list_element* list = null;
 
+				// проверка, существует ли такой факт в хранилище
+				list = idx_spo.get(cast(char*) s, cast(char*) p, cast(char*) o, dummy);
+				//log.trace("addTriple #1");
+				if(list !is null)
+				{
+					log.trace("addTriple: triple <{}><{}>\"{}\" already exist", s, p, o);
+					log.trace("addTriple: exist triples:");
+					print_list_triple(list);
+					return -2;
+					//		        throw new Exception ("addTriple: triple already exist");
+				}
+
 				// проверка для предикатов которые не могут иметь множества значений для одного субьекта
 				if(this_predicate_as_multiple == false)
 				{
@@ -596,23 +608,14 @@ class TripleStorageMemory: TripleStorage
 
 							log.trace("addTriple: remove triple <{}><{}>\"{}\"", s, p, fromStringz(list.triple.o));
 						}
+						
+						// удаляем существующий факт с данным предикатом, таким образом, мы обновим значение предиката новым
 						removeTriple(s, p, fromStringz(list.triple.o));
 						//						throw new Exception("addTriple: for that predicate already has data ");
 
 					}
 				}
 
-				// проверка, существует ли такой факт в хранилище
-				list = idx_spo.get(cast(char*) s, cast(char*) p, cast(char*) o, dummy);
-				//log.trace("addTriple #1");
-				if(list !is null)
-				{
-					log.trace("addTriple: triple <{}><{}>\"{}\" already exist", s, p, o);
-					log.trace("addTriple: exist triples:");
-					print_list_triple(list);
-					return -2;
-					//		        throw new Exception ("addTriple: triple already exist");
-				}
 
 				if(f_trace_addTriple)
 					log.trace("addTriple:add index spo");
