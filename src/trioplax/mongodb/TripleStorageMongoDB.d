@@ -42,7 +42,7 @@ class TripleStorageMongoDB: TripleStorage
 	private int last_used_element_in_strings = 0;
 
 	private Triple* triples = null;
-	
+
 	private int elements_in_list_max_length = 0;
 	private triple_list_element* elements_in_list = null;
 	private int last_used_element_in_pull = 0;
@@ -79,10 +79,10 @@ class TripleStorageMongoDB: TripleStorage
 		triples = cast(Triple*) calloc(Triple.sizeof, max_length_pull * average_list_size);
 		strings_max_length = max_length_pull * average_list_size * 3 * 256;
 		strings = cast(char*) calloc(char.sizeof, strings_max_length);
-		
+
 		elements_in_list_max_length = max_length_pull * average_list_size;
 		elements_in_list = cast(triple_list_element*) calloc(triple_list_element.sizeof, elements_in_list_max_length);
-		
+
 		used_list = new triple_list_element*[max_length_pull];
 		last_used_element_in_pull = 0;
 
@@ -280,6 +280,9 @@ class TripleStorageMongoDB: TripleStorage
 
 				} catch(IndexException ex)
 				{
+					// при первом же сбое в кэше, отключим его к чертям собачьим :)
+					cache_query_result = null;
+					list_query = null;
 
 					log.trace("S1PPOO query is not add in cache [list_query]: exception: {}", ex.message);
 				}
@@ -381,8 +384,8 @@ class TripleStorageMongoDB: TripleStorage
 			Triple* triple = triples + last_used_element_in_pull;
 
 			last_used_element_in_pull++;
-			if (last_used_element_in_pull > elements_in_list_max_length)
-				throw new Exception ("pull is overflow");
+			if(last_used_element_in_pull > elements_in_list_max_length)
+				throw new Exception("pull is overflow");
 
 			length_list++;
 
@@ -413,10 +416,19 @@ class TripleStorageMongoDB: TripleStorage
 				//				log.trace("#2");
 				char[] ss2 = fromStringz(triple.s);
 
-				cache_query_result.addTriple(ss2, P1, pp1);
-				cache_query_result.addTriple(ss2, P2, oo1);
+				try
+				{
+					cache_query_result.addTriple(ss2, P1, pp1);
+					cache_query_result.addTriple(ss2, P2, oo1);
 
-				cache_query_result.addTriple(ss2, fromStringz(triple.p), fromStringz(triple.o));
+					cache_query_result.addTriple(ss2, fromStringz(triple.p), fromStringz(triple.o));
+				} catch(Exception ex)
+				{
+					// при первом же сбое в кэше, отключим его к чертям собачьим :)
+					cache_query_result = null;
+					list_query = null;
+				}
+
 				//				log.trace("S1PPOO cache_query_result.addTriple <{}><{}>\"{}\"", fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
 
 				//				log.trace("check adding ");
@@ -567,6 +579,9 @@ class TripleStorageMongoDB: TripleStorage
 					count_queries_in_cache++;
 				} catch(IndexException ex)
 				{
+					// при первом же сбое в кэше, отключим его к чертям собачьим :)
+					cache_query_result = null;
+					list_query = null;
 
 					log.trace("query is not add in cache [list_query]: exception: {}", ex.message);
 				}
@@ -696,8 +711,8 @@ class TripleStorageMongoDB: TripleStorage
 									Triple* triple = triples + last_used_element_in_pull;
 
 									last_used_element_in_pull++;
-			if (last_used_element_in_pull > elements_in_list_max_length)
-				throw new Exception ("pull is overflow");
+									if(last_used_element_in_pull > elements_in_list_max_length)
+										throw new Exception("pull is overflow");
 
 									if(prev_element !is null)
 									{
@@ -725,7 +740,17 @@ class TripleStorageMongoDB: TripleStorage
 
 									if(f_is_query_stored == true)
 									{
-										cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
+										try
+										{
+											cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p),
+													fromStringz(triple.o));
+
+										} catch(IndexException ex)
+										{
+											// при первом же сбое в кэше, отключим его к чертям собачьим :)
+											cache_query_result = null;
+											list_query = null;
+										}
 										//										log.trace("cache_query_result.addTriple");
 									}
 									//			log.trace("get #11, list[{:X4}], triple[{:X4}]", list, triple);
@@ -805,8 +830,8 @@ class TripleStorageMongoDB: TripleStorage
 					Triple* triple = triples + last_used_element_in_pull;
 
 					last_used_element_in_pull++;
-			if (last_used_element_in_pull > elements_in_list_max_length)
-				throw new Exception ("pull is overflow");
+					if(last_used_element_in_pull > elements_in_list_max_length)
+						throw new Exception("pull is overflow");
 
 					length_list++;
 
@@ -836,7 +861,16 @@ class TripleStorageMongoDB: TripleStorage
 
 					if(f_is_query_stored == true)
 					{
-						cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
+
+						try
+						{
+							cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
+						} catch(IndexException ex)
+						{
+							// при первом же сбое в кэше, отключим его к чертям собачьим :)
+							cache_query_result = null;
+							list_query = null;
+						}
 						//						log.trace("cache_query_result.addTriple");
 					}
 
