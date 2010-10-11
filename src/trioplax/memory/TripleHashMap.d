@@ -1,11 +1,11 @@
 module trioplax.memory.TripleHashMap;
 
-private import tango.stdc.stdlib: calloc;
-private import tango.stdc.stdlib: malloc;
-private import tango.stdc.string;
-private import tango.stdc.stringz;
-private import tango.io.Stdout;
-private import Integer = tango.text.convert.Integer;
+private import std.c.stdlib: calloc;
+private import std.c.stdlib: malloc;
+private import std.c.string;
+//private import std.c.stringz;
+//private import tango.io.Stdout;
+//private import Integer = tango.text.convert.Integer;
 
 private import trioplax.Log;
 private import trioplax.triple;

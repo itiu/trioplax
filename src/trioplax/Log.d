@@ -8,13 +8,13 @@
  **/
 module trioplax.Log;
 
-private import tango.util.log.Log;
+//private import tango.util.log.Log;
 
-private import tango.time.Clock;
-private import tango.time.WallClock;
-private import tango.util.log.AppendFile;
-private import tango.util.log.AppendConsole;
-private import tango.text.convert.Layout;
+//private import tango.time.Clock;
+//private import tango.time.WallClock;
+//private import tango.util.log.AppendFile;
+//private import tango.util.log.AppendConsole;
+//private import tango.text.convert.Layout;
 
 package
 {
