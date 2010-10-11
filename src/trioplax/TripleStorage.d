@@ -1,6 +1,6 @@
 module trioplax.TripleStorage;
 
-//private import trioplax.triple;
+private import trioplax.triple;
 //private import tango.io.device.File;
 
 interface TripleStorage
@@ -28,7 +28,7 @@ interface TripleStorage
 	////////////////////////////////////////
 		
 	public void print_stat();
-	public void print_list_triple_to_file(File log_file, triple_list_element* list_iterator);
+//	public void print_list_triple_to_file(File log_file, triple_list_element* list_iterator);
 	public void print_list_triple(triple_list_element* list_iterator);
 
 	public int get_count_form_list_triple(triple_list_element* list_iterator);

@@ -1,9 +1,9 @@
 module trioplax.mongodb.TripleStorageMongoDB;
 
-//private import tango.io.Stdout;
+//private import std.string;
 private import std.c.string;
-//private import std.c.stringz;
-private import std.c.stdlib: calloc;
+private import std.stdio;
+private import std.c.stdlib: calloc, free;
 
 //private import Integer = tango.text.convert.Integer;
 //private import tango.io.device.File;
@@ -23,14 +23,15 @@ private import bson;
 private import md5;
 private import mongo;
 
-private import std.c.stdlib: calloc, free;
-
 private import trioplax.memory.TripleStorageMemory;
 private import trioplax.memory.TripleHashMap;
 private import trioplax.memory.IndexException;
 
 class TripleStorageMongoDB: TripleStorage
 {
+	string query_log_filename = "triple-storage-io";
+	private FILE* query_log = null;
+
 	private long total_count_queries = 0;
 	private long count_queries_in_cache = 0;
 
@@ -86,7 +87,7 @@ class TripleStorageMongoDB: TripleStorage
 		used_list = new triple_list_element*[max_length_pull];
 		last_used_element_in_pull = 0;
 
-		layout = new Locale;
+//		layout = new Locale;
 		buff = new char[32];
 
 		mongo_connection_options opts;
@@ -937,21 +938,21 @@ class TripleStorageMongoDB: TripleStorage
 
 		int count = get_count_form_list_triple(list);
 
-		auto style = File.ReadWriteOpen;
-		style.share = File.Share.Read;
-		style.open = File.Open.Append;
-		File log_file = new File("triple-storage-io", style);
+		if (query_log is null)
+			query_log = fopen(query_log_filename.ptr, "w");
 
-		auto tm = WallClock.now;
-		auto dt = Clock.toDate(tm);
-		log_file.output.write(layout("{:yyyy-MM-dd HH:mm:ss},{} ", tm, dt.time.millis));
+//		auto tm = WallClock.now;
+//		auto dt = Clock.toDate(tm);
+//		log_file.output.write(layout("{:yyyy-MM-dd HH:mm:ss},{} ", tm, dt.time.millis));
 
-		log_file.output.write(op ~ "\n s=[" ~ fromStringz(s) ~ "] p=[" ~ fromStringz(p) ~ "] o=[" ~ fromStringz(o) ~ "] " ~ Integer.format(
-				buff, count) ~ "\n");
+fprintf(query_log,"\t%.*s\n", s);
 
-		print_list_triple_to_file(log_file, list);
+//		log_file.output.write(op ~ "\n s=[" ~ fromStringz(s) ~ "] p=[" ~ fromStringz(p) ~ "] o=[" ~ fromStringz(o) //~ "] " ~ Integer.format(
+//				buff, count) ~ "\n");
 
-		log_file.close();
+//		print_list_triple_to_file(log_file, list);
+
+//		log_file.close();
 
 	}
 
@@ -1115,7 +1116,7 @@ class TripleStorageMongoDB: TripleStorage
 		//			log.trace("used list of query {}", values[i]);
 		//		}
 	}
-
+/*
 	public void print_list_triple_to_file(File log_file, triple_list_element* list_iterator)
 	{
 		Triple* triple;
@@ -1136,7 +1137,7 @@ class TripleStorageMongoDB: TripleStorage
 			}
 		}
 	}
-
+*/
 	public void print_list_triple(triple_list_element* list_iterator)
 	{
 		Triple* triple;

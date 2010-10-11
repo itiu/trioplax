@@ -1,101 +1,41 @@
-/**
- License:                GNU General Public License version 3 (see license.txt, also available online at http://www.gnu.org/licenses/gpl-3.0.html)
- Authors:                OrbitalLab (http://www.orbitallab.ru/dee0xd/), 2008
-
- File:                   log.d
- Description:    some logging stuff
- Date:                   09.12.2008 by Digited
- **/
 module trioplax.Log;
 
-//private import tango.util.log.Log;
-
-//private import tango.time.Clock;
-//private import tango.time.WallClock;
-//private import tango.util.log.AppendFile;
-//private import tango.util.log.AppendConsole;
-//private import tango.text.convert.Layout;
+import std.stdio;
 
 package
 {
-	Logger log;
-	Layout!(char) _layout;
+	Log log;
 }
 
 private
 {
-	AppendFile _logFile;
+public class Log
+{
+
+static string trace_logfilename = "trace.log";
+static FILE* fplog;
 
 	static this()
 	{
-		_layout = new Layout!(char);
-
-		//-------------------- log -------------------------------------------------
-
-		// all loggers, as children of root, print also to console by default
-		//                Log.root.add( new AppendConsole( new VerySimpleLayout ) );
-
-		// trace is the lowest level, so all levels are logged
-		Log.root.level(Logger.Level.Trace);
-
-		log = Log.getLogger("trioplax_trace");
-
-		_logFile = new AppendFile("trioplax.log", new VerySimpleLayout);
-		log.add(_logFile);
+fplog = fopen(trace_logfilename.ptr, "w");
 	}
 
 	static ~this()
 	{
-		_logFile.close;
+	//	fplog.close;
 		delete log;
 	}
 
-	class VerySimpleLayout: Appender.Layout
-	{
-		private:
-			bool localTime;
+void trace (char[] tl, ...)
+{
+//_arguments, _argptr
+        fprintf(fplog,"\t%.*s\n", "ewtwet");
+}
+ }
+ 
+}
 
-			char[] convert(char[] tmp, long i)
-			{
-				return Integer.formatter(tmp, i, 'u', '?', 8);
-			}
-
-		public:
-			this(bool localTime = true)
-			{
-				this.localTime = localTime;
-			}
-
-			void format(LogEvent event, size_t delegate(void[]) dg)
-			{
-				char[] level = event.levelName;
-
-				char[13] tmp = void;
-				char[256] tmp2 = void;
-
-				// convert time to field values
-				auto tm = event.time;
-				auto dt = (localTime) ? WallClock.toDate(tm) : Clock.toDate(tm);
-
-				dg(_layout("{}.{} {}:{}:{},{} ---> {}", convert(tmp[0 .. 2], dt.date.month), convert(tmp[2 .. 4], dt.date.day), convert(tmp[4 .. 6],
-						dt.time.hours), convert(tmp[6 .. 8], dt.time.minutes), convert(tmp[8 .. 10], dt.time.seconds), convert(tmp[10 .. 13],
-						dt.time.millis), event.toString));
-			}
-
-			void format(LogEvent event, void delegate(void[]) dg)
-			{
-				char[] level = event.levelName;
-
-				char[13] tmp = void;
-				char[256] tmp2 = void;
-
-				// convert time to field values
-				auto tm = event.time;
-				auto dt = (localTime) ? WallClock.toDate(tm) : Clock.toDate(tm);
-
-				dg(_layout("{}.{} {}:{}:{},{} ---> {}", convert(tmp[0 .. 2], dt.date.month), convert(tmp[2 .. 4], dt.date.day), convert(tmp[4 .. 6],
-						dt.time.hours), convert(tmp[6 .. 8], dt.time.minutes), convert(tmp[8 .. 10], dt.time.seconds), convert(tmp[10 .. 13],
-						dt.time.millis), event.toString));
-			}
-	}
+char[] fromStringz (char* src)
+{
+return null;
 }

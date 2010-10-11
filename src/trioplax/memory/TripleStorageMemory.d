@@ -2,6 +2,8 @@ module trioplax.memory.TripleStorageMemory;
 
 //private import tango.io.Stdout;
 private import std.c.string;
+private import std.stdio;
+
 //private import std.c.stringz;
 
 //private import Integer = tango.text.convert.Integer;
@@ -17,8 +19,6 @@ private import trioplax.TripleStorage;
 private import trioplax.memory.TripleHashMap;
 private import trioplax.memory.IndexException;
 
-private Locale layout;
-
 enum idx_name
 {
 	S = (1 << 0),
@@ -33,7 +33,10 @@ enum idx_name
 
 class TripleStorageMemory: TripleStorage
 {
-	private char[] buff = null;
+        string query_log_filename = "triple-storage-io";
+        private FILE* query_log = null;
+                
+        private char[] buff = null;
 
 	private bool log_query = false;
 	//	public bool INFO_stat_get_triples = true;
@@ -68,7 +71,7 @@ class TripleStorageMemory: TripleStorage
 
 	this(int max_count_element, uint max_length_order, uint inital_triple_area_length)
 	{
-		layout = new Locale;
+//		layout = new Locale;
 
 		cat_buff1 = new char[64 * 1024];
 		cat_buff2 = new char[64 * 1024];
@@ -280,21 +283,21 @@ class TripleStorageMemory: TripleStorage
 
 		int count = get_count_form_list_triple(list);
 
-		auto style = File.ReadWriteOpen;
-		style.share = File.Share.Read;
-		style.open = File.Open.Append;
-		File log_file = new File("triple-storage-io", style);
+		if (query_log is null)
+			query_log = fopen(query_log_filename.ptr, "w");
 
-		auto tm = WallClock.now;
-		auto dt = Clock.toDate(tm);
-		log_file.output.write(layout("{:yyyy-MM-dd HH:mm:ss},{} ", tm, dt.time.millis));
+//		auto tm = WallClock.now;
+//		auto dt = Clock.toDate(tm);
+//		log_file.output.write(layout("{:yyyy-MM-dd HH:mm:ss},{} ", tm, dt.time.millis));
 
-		log_file.output.write(op ~ "\n s=[" ~ fromStringz(s) ~ "] p=[" ~ fromStringz(p) ~ "] o=[" ~ fromStringz(o) ~ "] " ~ Integer.format(
-				buff, count) ~ "\n");
+fprintf(query_log,"\t%.*s\n", s);
 
-		print_list_triple_to_file(log_file, list);
+//		log_file.output.write(op ~ "\n s=[" ~ fromStringz(s) ~ "] p=[" ~ fromStringz(p) ~ "] o=[" ~ fromStringz(o) //~ "] " ~ Integer.format(
+//				buff, count) ~ "\n");
 
-		log_file.close();
+//		print_list_triple_to_file(log_file, list);
+
+//		log_file.close();
 
 	}
 
@@ -838,7 +841,7 @@ class TripleStorageMemory: TripleStorage
 		if(idx_s1ppoo !is null)
 			log.trace("index {}, counts={} ", idx_s1ppoo.getName(), idx_s1ppoo.get_count_elements());
 	}
-
+/*
 	public void print_list_triple_to_file(File log_file, triple_list_element* list_iterator)
 	{
 		Triple* triple;
@@ -859,7 +862,7 @@ class TripleStorageMemory: TripleStorage
 			}
 		}
 	}
-
+*/
 	public void print_list_triple(triple_list_element* list_iterator)
 	{
 		Triple* triple;
