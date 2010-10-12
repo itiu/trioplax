@@ -6,6 +6,8 @@ private import std.c.stdlib;
 
 private import std.c.string;
 
+private import std.string;
+
 private import trioplax.Log;
 
 private import trioplax.triple;
@@ -57,13 +59,13 @@ class HashMap
 hashName = _hashName;
 max_size_short_order = _max_size_short_order;
 max_count_elements = _max_count_elements;
-log.trace("*** create HashMap[name={}, max_count_elements={}, max_size_short_order={}, triple_area_length={} ... start",hashName,_max_count_elements,max_size_short_order,_triple_area_length);
+log.trace("*** create HashMap[name=%s, max_count_elements=%s, max_size_short_order=%s, triple_area_length=%s ... start",hashName,_max_count_elements,max_size_short_order,_triple_area_length);
 max_size_reducer = max_count_elements * max_size_short_order + max_size_short_order;
 reducer = new triple_list_header*[](max_size_reducer);
-log.trace("*** HashMap[name={}, reducer.length={}",hashName,reducer.length);
+log.trace("*** HashMap[name=%s, reducer.length=%s",hashName,reducer.length);
 keyz_area = new ubyte[](_triple_area_length);
 keyz_area__last = 0;
-log.trace("*** HashMap[name={}, keyz_area.length={}",hashName,keyz_area.length);
+log.trace("*** HashMap[name=%s, keyz_area.length=%s",hashName,keyz_area.length);
 triples_area = new Triple[](_max_count_elements);
 triples_area__last = 0;
 log.trace("*** create object HashMap... ok");

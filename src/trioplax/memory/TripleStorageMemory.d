@@ -1,16 +1,7 @@
 module trioplax.memory.TripleStorageMemory;
 
-//private import tango.io.Stdout;
 private import std.c.string;
 private import std.stdio;
-
-//private import std.c.stringz;
-
-//private import Integer = tango.text.convert.Integer;
-//private import tango.io.device.File;
-//private import tango.time.WallClock;
-//private import tango.time.Clock;
-//private import tango.text.locale.Locale;
 
 private import trioplax.Log;
 private import trioplax.triple;
@@ -33,10 +24,10 @@ enum idx_name
 
 class TripleStorageMemory: TripleStorage
 {
-        string query_log_filename = "triple-storage-io";
-        private FILE* query_log = null;
-                
-        private char[] buff = null;
+	string query_log_filename = "triple-storage-io";
+	private FILE* query_log = null;
+
+	private char[] buff = null;
 
 	private bool log_query = false;
 	//	public bool INFO_stat_get_triples = true;
@@ -71,7 +62,7 @@ class TripleStorageMemory: TripleStorage
 
 	this(int max_count_element, uint max_length_order, uint inital_triple_area_length)
 	{
-//		layout = new Locale;
+		//		layout = new Locale;
 
 		cat_buff1 = new char[64 * 1024];
 		cat_buff2 = new char[64 * 1024];
@@ -94,7 +85,7 @@ class TripleStorageMemory: TripleStorage
 	{
 		predicate_as_multiple[predicate] = true;
 
-		log.trace("define predicate [{}] as multiple", predicate);
+		log.trace("define predicate [%s] as multiple", predicate);
 	}
 
 	public void list_no_longer_required(triple_list_element* first_element_of_list)
@@ -283,27 +274,27 @@ class TripleStorageMemory: TripleStorage
 
 		int count = get_count_form_list_triple(list);
 
-		if (query_log is null)
+		if(query_log is null)
 			query_log = fopen(query_log_filename.ptr, "w");
 
-//		auto tm = WallClock.now;
-//		auto dt = Clock.toDate(tm);
-//		log_file.output.write(layout("{:yyyy-MM-dd HH:mm:ss},{} ", tm, dt.time.millis));
+		//		auto tm = WallClock.now;
+		//		auto dt = Clock.toDate(tm);
+		//		log_file.output.write(layout("{:yyyy-MM-dd HH:mm:ss},%s ", tm, dt.time.millis));
 
-fprintf(query_log,"\t%.*s\n", s);
+		fprintf(query_log, "\t%.*s\n", s);
 
-//		log_file.output.write(op ~ "\n s=[" ~ fromStringz(s) ~ "] p=[" ~ fromStringz(p) ~ "] o=[" ~ fromStringz(o) //~ "] " ~ Integer.format(
-//				buff, count) ~ "\n");
+		//		log_file.output.write(op ~ "\n s=[" ~ toString(s) ~ "] p=[" ~ toString(p) ~ "] o=[" ~ toString(o) //~ "] " ~ Integer.format(
+		//				buff, count) ~ "\n");
 
-//		print_list_triple_to_file(log_file, list);
+		//		print_list_triple_to_file(log_file, list);
 
-//		log_file.close();
+		//		log_file.close();
 
 	}
 
 	public bool removeTriple(char[] s, char[] p, char[] o)
 	{
-//		log.trace("TripleStorageMemory:remove triple <{}><{}>\"{}\"", s, p, o);
+		//		log.trace("TripleStorageMemory:remove triple <%s><%s>\"%s\"", s, p, o);
 
 		if(s.length == 0 && p.length == 0 && o.length == 0)
 		{
@@ -320,7 +311,7 @@ fprintf(query_log,"\t%.*s\n", s);
 		}
 
 		//		log.trace("");
-		//		log.trace("remove triple <{}><{}>\"{}\"", s, p, o);
+		//		log.trace("remove triple <%s><%s>\"%s\"", s, p, o);
 
 		Triple* removed_triple;
 
@@ -335,7 +326,7 @@ fprintf(query_log,"\t%.*s\n", s);
 			return false;
 		}
 
-		//		log.trace("removing triple <{}><{}>\"{}\"", fromStringz(removed_triple.s), fromStringz(removed_triple.p), fromStringz(removed_triple.o));
+		//		log.trace("removing triple <%s><%s>\"%s\"", toString(removed_triple.s), toString(removed_triple.p), toString(removed_triple.o));
 
 		if(idx_s1ppoo !is null)
 		{
@@ -346,7 +337,7 @@ fprintf(query_log,"\t%.*s\n", s);
 			{
 				if(p == look_predicate_p1_on_idx_s1ppoo[i])
 				{
-					log.trace("A: remove from index s1ppoo (p == look_predicate_p1_on_idx_s1ppoo[{})", i);
+					log.trace("A: remove from index s1ppoo (p == look_predicate_p1_on_idx_s1ppoo[%d])", i);
 
 					char[] o1 = o;
 					char[] p1 = p;
@@ -355,10 +346,10 @@ fprintf(query_log,"\t%.*s\n", s);
 					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p2, null, dummy);
 					if(listS !is null)
 					{
-						char[] o2 = fromStringz(listS.triple.o);
+						char[] o2 = std.string.toString(listS.triple.o);
 
-						//						log.trace("remove from index sppoo A: p1 = {}, p2 = {}", p1, p2);
-						//						log.trace("### [{}] [{}] [{}]", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
+						//						log.trace("remove from index sppoo A: p1 = %s, p2 = %s", p1, p2);
+						//						log.trace("### [%s] [%s] [%s]", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
 
 						listS = idx_s1ppoo.get(look_predicate_pp_on_idx_s1ppoo[i].ptr, o1.ptr, o2.ptr, dummy);
 						//						log.trace("#s1ppoo content:");
@@ -374,7 +365,7 @@ fprintf(query_log,"\t%.*s\n", s);
 								{
 									if(strcmp(s.ptr, triple1.s) == 0)
 									{
-										//										log.trace("found: <{}><{}>\"{}\"", fromStringz(triple1.s), fromStringz(triple1.p), fromStringz(triple1.o));
+										//										log.trace("found: <%s><%s>\"%s\"", toString(triple1.s), toString(triple1.p), toString(triple1.o));
 										break;
 									}
 								}
@@ -387,8 +378,8 @@ fprintf(query_log,"\t%.*s\n", s);
 							//							log.trace("#! list before remove:");
 							//							listS = idx_s1ppoo.get(look_predicate_pp_on_idx_s1ppoo[i].ptr, o1.ptr, o2.ptr, dummy);
 							//							print_list_triple(listS);
-							log.trace("A: remove from index s1ppoo s1={} pp = {}, oo = {}", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
-							log.trace("A: remove triple: <{}><{}>\"{}\"", fromStringz(triple1.s), fromStringz(triple1.p), fromStringz(triple1.o));
+							log.trace("A: remove from index s1ppoo s1=%s pp = %s, oo = %s", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
+							log.trace("A: remove triple: <%s><%s>\"%s\"", triple1.s, triple1.p, triple1.o);
 
 							idx_s1ppoo.INFO_remove_triple_from_list = INFO_remove_triple_from_list;
 							idx_s1ppoo.remove_triple_from_list(triple1, look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
@@ -402,7 +393,7 @@ fprintf(query_log,"\t%.*s\n", s);
 				}
 				else if(p == look_predicate_p2_on_idx_s1ppoo[i])
 				{
-					log.trace("B: remove from index s1ppoo (p == look_predicate_p2_on_idx_s1ppoo[{})", i);
+					log.trace("B: remove from index s1ppoo (p == look_predicate_p2_on_idx_s1ppoo[%s)", i);
 
 					char[] o2 = o;
 					char[] p2 = p;
@@ -411,8 +402,7 @@ fprintf(query_log,"\t%.*s\n", s);
 					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p1, null, dummy);
 					if(listS !is null)
 					{
-						char[] o1 = fromStringz(listS.triple.o);
-
+						char[] o1 = std.string.toString(listS.triple.o);
 
 						listS = idx_s1ppoo.get(look_predicate_pp_on_idx_s1ppoo[i].ptr, o1.ptr, o2.ptr, dummy);
 
@@ -435,8 +425,8 @@ fprintf(query_log,"\t%.*s\n", s);
 
 						if(triple1 !is null)
 						{
-							log.trace("B: remove from index s1ppoo s1={} pp = {}, oo = {}", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
-							log.trace("B: remove triple: <{}><{}>\"{}\"", fromStringz(triple1.s), fromStringz(triple1.p), fromStringz(triple1.o));
+							log.trace("B: remove from index s1ppoo s1=%s pp = %s, oo = %s", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
+							log.trace("B: remove triple: <%s><%s>\"%s\"", triple1.s, triple1.p, triple1.o);
 
 							idx_s1ppoo.INFO_remove_triple_from_list = INFO_remove_triple_from_list;
 							idx_s1ppoo.remove_triple_from_list(triple1, look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
@@ -453,23 +443,23 @@ fprintf(query_log,"\t%.*s\n", s);
 					char[] p2 = look_predicate_p2_on_idx_s1ppoo[i];
 
 					// найдем через субьекта, O1 и O2, фактов P1 и P2
-					log.trace ("найдем o1, where s={} p={} o=* ", s, p1);
+					log.trace("найдем o1, where s=%s p=%s o=* ", s, p1);
 					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p1, null, dummy);
 					if(listS !is null)
 					{
-						log.trace ("#1");
-						o1 = fromStringz(listS.triple.o);
+						log.trace("#1");
+						o1 = std.string.toString(listS.triple.o);
 					}
 
-					log.trace ("найдем o2, where s={} p={} o=* ", s, p2);
+					log.trace("найдем o2, where s=%s p=%s o=* ", s, p2);
 					listS = idx_sp.get(cast(char*) s, cast(char*) p2, null, dummy);
 					if(listS !is null)
 					{
-						log.trace ("#2");
-						o2 = fromStringz(listS.triple.o);
+						log.trace("#2");
+						o2 = std.string.toString(listS.triple.o);
 					}
 
-					log.trace ("look_predicate_pp_on_idx_s1ppoo[i]={}, o1={}, o2={}", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
+					log.trace("look_predicate_pp_on_idx_s1ppoo[i]=%s, o1=%s, o2=%s", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
 
 					idx_s1ppoo.remove_triple_from_list(removed_triple, look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
 					is_deleted_from_list = true;
@@ -477,7 +467,7 @@ fprintf(query_log,"\t%.*s\n", s);
 				}
 
 			}
-			
+
 		}
 
 		if(idx_s !is null)
@@ -509,7 +499,7 @@ fprintf(query_log,"\t%.*s\n", s);
 			idx_so.INFO_remove_triple_from_list = INFO_remove_triple_from_list;
 			idx_so.remove_triple_from_list(removed_triple, s, o, null);
 		}
-		
+
 		if(idx_sp !is null)
 		{
 			idx_sp.INFO_remove_triple_from_list = INFO_remove_triple_from_list;
@@ -544,8 +534,8 @@ fprintf(query_log,"\t%.*s\n", s);
 
 	public int addTriple(char[] s, char[] p, char[] o)
 	{
-//		log.trace("TripleStorageMemory:add triple <{}><{}>\"{}\"", s, p, o);
-		
+		//		log.trace("TripleStorageMemory:add triple <%s><%s>\"%s\"", s, p, o);
+
 		try
 		{
 
@@ -555,7 +545,7 @@ fprintf(query_log,"\t%.*s\n", s);
 				//do_things(o.ptr);
 
 				if(f_trace_addTriple)
-					log.trace("addTriple:1 add triple <{}><{}>\"{}\"", s, p, o);
+					log.trace("addTriple:1 add triple <%s><%s>\"%s\"", s, p, o);
 
 				Triple* triple;
 
@@ -587,7 +577,7 @@ fprintf(query_log,"\t%.*s\n", s);
 				//log.trace("addTriple #1");
 				if(list !is null)
 				{
-					log.trace("addTriple: triple <{}><{}>\"{}\" already exist", s, p, o);
+					log.trace("addTriple: triple <%s><%s>\"%s\" already exist", s, p, o);
 					log.trace("addTriple: exist triples:");
 					print_list_triple(list);
 					return -2;
@@ -605,20 +595,19 @@ fprintf(query_log,"\t%.*s\n", s);
 					{
 						if(f_trace_addTriple)
 						{
-							log.trace("addTriple: add triple <{}><{}>\"{}\"", s, p, o);
+							log.trace("addTriple: add triple <%s><%s>\"%s\"", s, p, o);
 							log.trace("addTriple: exist triples:");
 							print_list_triple(list);
 
-							log.trace("addTriple: remove triple <{}><{}>\"{}\"", s, p, fromStringz(list.triple.o));
+							log.trace("addTriple: remove triple <%s><%s>\"%s\"", s, p, list.triple.o);
 						}
-						
+
 						// удаляем существующий факт с данным предикатом, таким образом, мы обновим значение предиката новым
-						removeTriple(s, p, fromStringz(list.triple.o));
+						removeTriple(s, p, std.string.toString(list.triple.o));
 						//						throw new Exception("addTriple: for that predicate already has data ");
 
 					}
 				}
-
 
 				if(f_trace_addTriple)
 					log.trace("addTriple:add index spo");
@@ -650,10 +639,10 @@ fprintf(query_log,"\t%.*s\n", s);
 				triple = list.triple;
 
 				if(f_trace_addTriple)
-					log.trace("addTriple:triple <{}><{}>\"{}\"", fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
+					log.trace("addTriple:triple <%s><%s>\"%s\"", triple.s, triple.p, triple.o);
 
 				//		log.trace("addTriple:3 addr={:X4}", triple);
-				//		log.trace("addTriple:4 addr={:X4} s={} p={} o={}", triple, fromStringz(cast(char*) (triple + 6)));
+				//		log.trace("addTriple:4 addr={:X4} s=%s p=%s o=%s", triple, toString(cast(char*) (triple + 6)));
 
 				//				idx_s.f_check_add_to_index = true;
 
@@ -733,7 +722,7 @@ fprintf(query_log,"\t%.*s\n", s);
 
 							if(listS !is null)
 							{
-								o2 = fromStringz(listS.triple.o);
+								o2 = std.string.toString(listS.triple.o);
 							}
 
 						}
@@ -749,7 +738,7 @@ fprintf(query_log,"\t%.*s\n", s);
 
 							if(listS !is null)
 							{
-								o1 = fromStringz(listS.triple.o);
+								o1 = std.string.toString(listS.triple.o);
 							}
 
 						}
@@ -763,13 +752,13 @@ fprintf(query_log,"\t%.*s\n", s);
 							triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p1, null, dummy);
 							if(listS !is null)
 							{
-								o1 = fromStringz(listS.triple.o);
+								o1 = std.string.toString(listS.triple.o);
 							}
 
 							listS = idx_sp.get(cast(char*) s, cast(char*) p2, null, dummy);
 							if(listS !is null)
 							{
-								o2 = fromStringz(listS.triple.o);
+								o2 = std.string.toString(listS.triple.o);
 							}
 
 						}
@@ -784,7 +773,7 @@ fprintf(query_log,"\t%.*s\n", s);
 							//log.trace("#SPPOO_ADD 0");
 							//print_list_triple(listS);
 							char[] p1p2 = p1 ~ p2;
-							//log.trace ("#SPPOO_ADD 1 {} {} {} {} {} {}", p1 , p2 , p3 , o1 , o2, p1p2);
+							//log.trace ("#SPPOO_ADD 1 %s %s %s %s %s %s", p1 , p2 , p3 , o1 , o2, p1p2);
 							Triple* tripleS = listS.triple;
 
 							if(idx_s1ppoo.check_triple_in_list(tripleS, p1p2.ptr, o1.ptr, o2.ptr) == true)
@@ -809,7 +798,7 @@ fprintf(query_log,"\t%.*s\n", s);
 
 		} catch(IndexException ex)
 		{
-			log.trace("add triple Exception, {}, param={}", ex.message, ex.curLimitParam);
+			log.trace("add triple Exception, %s, param=%s", ex.message, ex.curLimitParam);
 			throw ex;
 		}
 
@@ -825,44 +814,45 @@ fprintf(query_log,"\t%.*s\n", s);
 	public void print_stat()
 	{
 		if(idx_s !is null)
-			log.trace("index {}, counts={} ", idx_s.getName(), idx_s.get_count_elements());
+			log.trace("index %s, counts=%s ", idx_s.getName(), idx_s.get_count_elements());
 		if(idx_p !is null)
-			log.trace("index {}, counts={} ", idx_p.getName(), idx_p.get_count_elements());
+			log.trace("index %s, counts=%s ", idx_p.getName(), idx_p.get_count_elements());
 		if(idx_o !is null)
-			log.trace("index {}, counts={} ", idx_o.getName(), idx_o.get_count_elements());
+			log.trace("index %s, counts=%s ", idx_o.getName(), idx_o.get_count_elements());
 		if(idx_sp !is null)
-			log.trace("index {}, counts={} ", idx_sp.getName(), idx_sp.get_count_elements());
+			log.trace("index %s, counts=%s ", idx_sp.getName(), idx_sp.get_count_elements());
 		if(idx_po !is null)
-			log.trace("index {}, counts={} ", idx_po.getName(), idx_po.get_count_elements());
+			log.trace("index %s, counts=%s ", idx_po.getName(), idx_po.get_count_elements());
 		if(idx_so !is null)
-			log.trace("index {}, counts={} ", idx_so.getName(), idx_so.get_count_elements());
+			log.trace("index %s, counts=%s ", idx_so.getName(), idx_so.get_count_elements());
 		if(idx_spo !is null)
-			log.trace("index {}, counts={} ", idx_spo.getName(), idx_spo.get_count_elements());
+			log.trace("index %s, counts=%s ", idx_spo.getName(), idx_spo.get_count_elements());
 		if(idx_s1ppoo !is null)
-			log.trace("index {}, counts={} ", idx_s1ppoo.getName(), idx_s1ppoo.get_count_elements());
+			log.trace("index %s, counts=%s ", idx_s1ppoo.getName(), idx_s1ppoo.get_count_elements());
 	}
-/*
-	public void print_list_triple_to_file(File log_file, triple_list_element* list_iterator)
-	{
-		Triple* triple;
-		if(list_iterator !is null)
-		{
-			while(list_iterator !is null)
-			{
-				//				log.trace("#KKK {:X4} {:X4} {:X4}", list_iterator, *list_iterator, *(list_iterator + 1));
 
-				triple = list_iterator.triple;
-				if(triple !is null)
-				{
-					char[] triple_str = triple_to_string(triple);
-					log_file.output.write(triple_str);
-				}
+	/*
+	 public void print_list_triple_to_file(File log_file, triple_list_element* list_iterator)
+	 {
+	 Triple* triple;
+	 if(list_iterator !is null)
+	 {
+	 while(list_iterator !is null)
+	 {
+	 //				log.trace("#KKK {:X4} {:X4} {:X4}", list_iterator, *list_iterator, *(list_iterator + 1));
 
-				list_iterator = list_iterator.next_triple_list_element;
-			}
-		}
-	}
-*/
+	 triple = list_iterator.triple;
+	 if(triple !is null)
+	 {
+	 char[] triple_str = triple_to_string(triple);
+	 log_file.output.write(triple_str);
+	 }
+
+	 list_iterator = list_iterator.next_triple_list_element;
+	 }
+	 }
+	 }
+	 */
 	public void print_list_triple(triple_list_element* list_iterator)
 	{
 		Triple* triple;
@@ -906,7 +896,7 @@ fprintf(query_log,"\t%.*s\n", s);
 		if(triple is null)
 			return;
 
-		log.trace("triple: <{}><{}>\"{}\"", fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
+		log.trace("triple: <%s><%s>\"%s\"", triple.s, triple.p, triple.o);
 	}
 
 	public char[] triple_to_string(Triple* triple)
@@ -914,7 +904,7 @@ fprintf(query_log,"\t%.*s\n", s);
 		if(triple is null)
 			return "";
 
-		return "<" ~ fromStringz(triple.s) ~ "> <" ~ fromStringz(triple.p) ~ "> \"" ~ fromStringz(triple.o) ~ "\".\n";
+		return "<" ~ std.string.toString(triple.s) ~ "> <" ~ std.string.toString(triple.p) ~ "> \"" ~ std.string.toString(triple.o) ~ "\".\n";
 	}
 
 }

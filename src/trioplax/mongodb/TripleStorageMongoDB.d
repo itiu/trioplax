@@ -1,6 +1,6 @@
 module trioplax.mongodb.TripleStorageMongoDB;
 
-//private import std.string;
+private import std.string;
 private import std.c.string;
 private import std.stdio;
 private import std.c.stdlib: calloc, free;
@@ -10,8 +10,6 @@ private import std.c.stdlib: calloc, free;
 //private import tango.time.WallClock;
 //private import tango.time.Clock;
 //private import tango.text.locale.Locale;
-
-//private Locale layout;
 
 //private import libmongoc_headers;
 
@@ -227,17 +225,17 @@ class TripleStorageMongoDB: TripleStorage
 		char oo1[];
 
 		if(s !is null)
-			ss1 = fromStringz(s);
+			ss1 = std.string.toString(s);
 		else
 			ss1 = "#";
 
 		if(p !is null)
-			pp1 = fromStringz(p);
+			pp1 = std.string.toString(p);
 		else
 			pp1 = "#";
 
 		if(o !is null)
-			oo1 = fromStringz(o);
+			oo1 = std.string.toString(o);
 		else
 			oo1 = "#";
 
@@ -398,7 +396,7 @@ class TripleStorageMongoDB: TripleStorage
 			prev_element = next_element;
 			if(list is null)
 			{
-				//				log.trace("getTriplesUseIndex #1 [{}] [{}] [{}]", fromStringz(s), fromStringz(p), fromStringz(o));
+				//				log.trace("getTriplesUseIndex #1 [{}] [{}] [{}]", toString(s), toString(p), toString(o));
 				list = next_element;
 			}
 			//			log.trace ("list={:X8}, next_element={:X8}, last_used_element_in_pull={}", list, next_element, last_used_element_in_pull);  
@@ -415,14 +413,14 @@ class TripleStorageMongoDB: TripleStorage
 				//				log.trace("#1");
 				//				S1PPOO_IDX.put (ss1, pp1, oo1, triple);
 				//				log.trace("#2");
-				char[] ss2 = fromStringz(triple.s);
+				char[] ss2 = std.string.toString(triple.s);
 
 				try
 				{
 					cache_query_result.addTriple(ss2, P1, pp1);
 					cache_query_result.addTriple(ss2, P2, oo1);
 
-					cache_query_result.addTriple(ss2, fromStringz(triple.p), fromStringz(triple.o));
+					cache_query_result.addTriple(ss2, std.string.toString(triple.p), std.string.toString(triple.o));
 				} catch(Exception ex)
 				{
 					// при первом же сбое в кэше, отключим его к чертям собачьим :)
@@ -430,7 +428,7 @@ class TripleStorageMongoDB: TripleStorage
 					list_query = null;
 				}
 
-				//				log.trace("S1PPOO cache_query_result.addTriple <{}><{}>\"{}\"", fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
+				//				log.trace("S1PPOO cache_query_result.addTriple <{}><{}>\"{}\"", toString(triple.s), toString(triple.p), toString(triple.o));
 
 				//				log.trace("check adding ");
 				//				list_in_cache = cache_query_result.getTriplesUseIndexS1PPOO(s, p, o);
@@ -466,13 +464,13 @@ class TripleStorageMongoDB: TripleStorage
 			 char oo[];
 
 			 if(s !is null)
-			 ss = fromStringz(s);
+			 ss = toString(s);
 
 			 if(p !is null)
-			 pp = fromStringz(p);
+			 pp = toString(p);
 
 			 if(o !is null)
-			 oo = fromStringz(o);
+			 oo = toString(o);
 
 			 if(count_used_lists < max_length_pull)
 			 {
@@ -512,7 +510,7 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(s !is null)
 		{
-			ss = fromStringz(s);
+			ss = std.string.toString(s);
 			ss1 = ss;
 			//						log.trace("GET TRIPLES #0 len(s)={}", strlen(s));
 		}
@@ -523,7 +521,7 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(p !is null)
 		{
-			pp = fromStringz(p);
+			pp = std.string.toString(p);
 			pp1 = pp;
 			//						log.trace("GET TRIPLES #0 len(p)={}", strlen(p));
 		}
@@ -534,7 +532,7 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(o !is null)
 		{
-			oo = fromStringz(o);
+			oo = std.string.toString(o);
 			oo1 = oo;
 			//						log.trace("GET TRIPLES #0, len(o)={}", strlen(o));
 		}
@@ -655,7 +653,7 @@ class TripleStorageMongoDB: TripleStorage
 
 						//						if(len > 0)
 						{
-							//							log.trace("name_key=[{}], value=[{}], len={}", fromStringz(name_key), fromStringz(value), len);
+							//							log.trace("name_key=[{}], value=[{}], len={}", toString(name_key), toString(value), len);
 
 							if(strcmp(name_key, "ss".ptr) == 0)
 							{
@@ -723,7 +721,7 @@ class TripleStorageMongoDB: TripleStorage
 									prev_element = next_element;
 									if(list is null)
 									{
-										//										log.trace("getTriples [{}] [{}] [{}]", fromStringz(s), fromStringz(p), fromStringz(o));
+										//										log.trace("getTriples [{}] [{}] [{}]", toString(s), toString(p), toString(o));
 										list = next_element;
 									}
 
@@ -743,8 +741,8 @@ class TripleStorageMongoDB: TripleStorage
 									{
 										try
 										{
-											cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p),
-													fromStringz(triple.o));
+											cache_query_result.addTriple(std.string.toString(triple.s), std.string.toString(triple.p),
+													std.string.toString(triple.o));
 
 										} catch(IndexException ex)
 										{
@@ -756,8 +754,8 @@ class TripleStorageMongoDB: TripleStorage
 									}
 									//			log.trace("get #11, list[{:X4}], triple[{:X4}]", list, triple);
 
-									//									log.trace("get:result <{}> <{}> \"{}\"", fromStringz(ts), fromStringz(tp),
-									//											fromStringz(to));
+									//									log.trace("get:result <{}> <{}> \"{}\"", toString(ts), toString(tp),
+									//											toString(to));
 								}
 							}
 						}
@@ -780,8 +778,8 @@ class TripleStorageMongoDB: TripleStorage
 
 					 if(len > 0)
 					 {
-					 //										log.trace("sub:name_key=[{}], value=[{}], len={}", fromStringz(name_key),
-					 //												fromStringz(value), len);
+					 //										log.trace("sub:name_key=[{}], value=[{}], len={}", toString(name_key),
+					 //												toString(value), len);
 					 }
 
 					 break;
@@ -844,7 +842,7 @@ class TripleStorageMongoDB: TripleStorage
 					prev_element = next_element;
 					if(list is null)
 					{
-						//						log.trace("getTriples [{}] [{}] [{}]", fromStringz(s), fromStringz(p), fromStringz(o));
+						//						log.trace("getTriples [{}] [{}] [{}]", toString(s), toString(p), toString(o));
 						list = next_element;
 					}
 					//					log.trace ("list={:X8}, next_element={:X8}, last_used_element_in_pull={}", list, next_element, last_used_element_in_pull);  
@@ -865,7 +863,7 @@ class TripleStorageMongoDB: TripleStorage
 
 						try
 						{
-							cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
+							cache_query_result.addTriple(std.string.toString(triple.s), std.string.toString(triple.p), std.string.toString(triple.o));
 						} catch(IndexException ex)
 						{
 							// при первом же сбое в кэше, отключим его к чертям собачьим :)
@@ -877,7 +875,7 @@ class TripleStorageMongoDB: TripleStorage
 
 					//			log.trace("get #11, list[{:X4}], triple[{:X4}]", list, triple);
 
-					//					log.trace("get:result <{}> <{}> \"{}\"", fromStringz(ts), fromStringz(tp), fromStringz(to));
+					//					log.trace("get:result <{}> <{}> \"{}\"", toString(ts), toString(tp), toString(to));
 				}
 			}
 		}
@@ -947,7 +945,7 @@ class TripleStorageMongoDB: TripleStorage
 
 fprintf(query_log,"\t%.*s\n", s);
 
-//		log_file.output.write(op ~ "\n s=[" ~ fromStringz(s) ~ "] p=[" ~ fromStringz(p) ~ "] o=[" ~ fromStringz(o) //~ "] " ~ Integer.format(
+//		log_file.output.write(op ~ "\n s=[" ~ toString(s) ~ "] p=[" ~ toString(p) ~ "] o=[" ~ toString(o) //~ "] " ~ Integer.format(
 //				buff, count) ~ "\n");
 
 //		print_list_triple_to_file(log_file, list);
@@ -1182,7 +1180,7 @@ fprintf(query_log,"\t%.*s\n", s);
 		if(triple is null)
 			return;
 
-		log.trace("triple: <{}><{}>\"{}\"", fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
+		log.trace("triple: <{}><{}>\"{}\"", triple.s, triple.p, triple.o);
 	}
 
 	public char[] triple_to_string(Triple* triple)
@@ -1190,7 +1188,7 @@ fprintf(query_log,"\t%.*s\n", s);
 		if(triple is null)
 			return "";
 
-		return "<" ~ fromStringz(triple.s) ~ "> <" ~ fromStringz(triple.p) ~ "> \"" ~ fromStringz(triple.o) ~ "\".\n";
+		return "<" ~ std.string.toString(triple.s) ~ "> <" ~ std.string.toString(triple.p) ~ "> \"" ~ std.string.toString(triple.o) ~ "\".\n";
 	}
 
 }
