@@ -36,7 +36,7 @@ class HashMap
 
     private uint count_element = 0;
 
-    private char[] hashName;
+    private string hashName;
 
     private uint max_count_elements = 1000;
 
@@ -54,7 +54,7 @@ class HashMap
 
     private int triples_area__last = 0;
 
-    this(char[] _hashName, int _max_count_elements, uint _triple_area_length, uint _max_size_short_order)
+    this(string _hashName, int _max_count_elements, uint _triple_area_length, uint _max_size_short_order)
 {
 hashName = _hashName;
 max_size_short_order = _max_size_short_order;
@@ -75,7 +75,7 @@ log.trace("*** create object HashMap... ok");
 return count_element;
 }
 
-    public char[] getName()
+    public string getName()
 {
 return hashName;
 }
@@ -88,8 +88,12 @@ return hashName;
 
     public void remove_triple_from_list(Triple* removed_triple, char[] s, char[] p, char[] o);
 
-    public void print_triple(char[] header, Triple* triple);
+    public void print_triple(string header, Triple* triple);
 
     public char[] triple_to_string(Triple* triple);
 
+}
+char[] fromStringz(char* s)
+{
+return s ? s[0..strlen(s)] : null;
 }

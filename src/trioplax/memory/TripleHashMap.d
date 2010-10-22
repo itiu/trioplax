@@ -28,7 +28,7 @@ class HashMap
 	public bool f_trace_get = false;
 
 	private uint count_element = 0;
-	private char[] hashName;
+	private string hashName;
 
 	private uint max_count_elements = 1_000;
 
@@ -46,7 +46,7 @@ class HashMap
 	private Triple[] triples_area = null;
 	private int triples_area__last = 0;
 
-	this(char[] _hashName, int _max_count_elements, uint _triple_area_length, uint _max_size_short_order)
+	this(string _hashName, int _max_count_elements, uint _triple_area_length, uint _max_size_short_order)
 	{
 		hashName = _hashName;
 		max_size_short_order = _max_size_short_order;
@@ -75,7 +75,7 @@ class HashMap
 		return count_element;
 	}
 
-	public char[] getName()
+	public string getName()
 	{
 		return hashName;
 	}
@@ -282,9 +282,9 @@ class HashMap
 						key2.length, key3.length);
 			}
 
-			keyz.s_length = key1.length;
-			keyz.p_length = key2.length;
-			keyz.o_length = key3.length;
+			keyz.s_length = cast(short)key1.length;
+			keyz.p_length = cast(short)key2.length;
+			keyz.o_length = cast(short)key3.length;
 			keyz.s = null;
 			keyz.p = null;
 			keyz.o = null;
@@ -385,7 +385,7 @@ class HashMap
 			{
 				log.trace("Exception: %s check add triple %s -> [%s][%s][%s] in index, triple not added in index", triple_to_string(
 						triple_ptr), hashName, key1, key2, key3);
-				throw new Exception(hashName ~ " triple <" ~ key1 ~ "><" ~ key2 ~ ">\"" ~ key3 ~ "\" not added in index");
+				throw new Exception(hashName ~ " triple <" ~ cast(string)key1 ~ "><" ~ cast(string)key2 ~ ">\"" ~ cast(string)key3 ~ "\" not added in index");
 			}
 		}
 
@@ -825,7 +825,7 @@ class HashMap
 		//		log.trace("remove_triple_from_list:%s #end", hashName);
 	}
 
-	public void print_triple(char[] header, Triple* triple)
+	public void print_triple(string header, Triple* triple)
 	{
 		if(triple is null)
 			return;
@@ -836,9 +836,14 @@ class HashMap
 	public char[] triple_to_string(Triple* triple)
 	{
 		if(triple is null)
-			return "";
+			return cast(char[])"";
 
-		return "<" ~ std.string.toString(triple.s) ~ "><" ~ std.string.toString(triple.p) ~ ">\"" ~ std.string.toString(triple.o) ~ "\"";
+		return "<" ~ fromStringz(triple.s) ~ "><" ~ fromStringz(triple.p) ~ ">\"" ~ fromStringz(triple.o) ~ "\"";
 	}
 
+}
+
+char[] fromStringz(char *s)
+{
+    return s ? s[0 .. strlen(s)] : null;
 }

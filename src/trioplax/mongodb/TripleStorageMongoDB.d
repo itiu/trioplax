@@ -2,16 +2,18 @@ module trioplax.mongodb.TripleStorageMongoDB;
 
 private import std.string;
 private import std.c.string;
+
+version (D1)
+{
 private import std.stdio;
+}
+
+version (D2)
+{
+private import core.stdc.stdio;
+}
+
 private import std.c.stdlib: calloc, free;
-
-//private import Integer = tango.text.convert.Integer;
-//private import tango.io.device.File;
-//private import tango.time.WallClock;
-//private import tango.time.Clock;
-//private import tango.text.locale.Locale;
-
-//private import libmongoc_headers;
 
 private import trioplax.triple;
 private import trioplax.TripleStorage;
@@ -49,8 +51,8 @@ class TripleStorageMongoDB: TripleStorage
 	private triple_list_element*[] used_list = null;
 
 	private char[] buff = null;
-	private const char* col = "az1";
-	private const char* ns = "az1.simple";
+	private char* col = cast (char*)"az1";
+	private char* ns = cast (char*)"az1.simple";
 
 	//	private char[][1024] query_of_used_lists;
 	//	private char[][triple_list_element*] used_lists_pull;
@@ -215,7 +217,7 @@ class TripleStorageMongoDB: TripleStorage
 			cache_query_result.setPredicatesToS1PPOO(P1, P2, store_predicate_in_list_on_idx_s1ppoo);
 	}
 
-	private char[] p_rt = "mo/at/acl#rt\0";
+	private char[] p_rt = cast(char[])"mo/at/acl#rt\0";
 
 	public triple_list_element* getTriplesUseIndexS1PPOO(char* s, char* p, char* o)
 	{
@@ -225,19 +227,19 @@ class TripleStorageMongoDB: TripleStorage
 		char oo1[];
 
 		if(s !is null)
-			ss1 = std.string.toString(s);
+			ss1 = fromStringz(s);
 		else
-			ss1 = "#";
+			ss1 = cast(char[])"#";
 
 		if(p !is null)
-			pp1 = std.string.toString(p);
+			pp1 = fromStringz(p);
 		else
-			pp1 = "#";
+			pp1 = cast(char[])"#";
 
 		if(o !is null)
-			oo1 = std.string.toString(o);
+			oo1 = fromStringz(o);
 		else
-			oo1 = "#";
+			oo1 = cast(char[])"#";
 
 		total_count_queries++;
 
@@ -294,11 +296,11 @@ class TripleStorageMongoDB: TripleStorage
 		bson_buffer_init(&bb);
 
 		if(s !is null)
-			bson_append_string(&bb, "mo/at/acl#tgSsE", p);
+			bson_append_string(&bb, cast(char[])"mo/at/acl#tgSsE", p);
 
 		if(p !is null)
 		{
-			bson_append_string(&bb, "mo/at/acl#eId", o);
+			bson_append_string(&bb, cast(char[])"mo/at/acl#eId", o);
 		}
 
 		bson_from_buffer(&b, &bb);
@@ -413,14 +415,14 @@ class TripleStorageMongoDB: TripleStorage
 				//				log.trace("#1");
 				//				S1PPOO_IDX.put (ss1, pp1, oo1, triple);
 				//				log.trace("#2");
-				char[] ss2 = std.string.toString(triple.s);
+				char[] ss2 = fromStringz(triple.s);
 
 				try
 				{
 					cache_query_result.addTriple(ss2, P1, pp1);
 					cache_query_result.addTriple(ss2, P2, oo1);
 
-					cache_query_result.addTriple(ss2, std.string.toString(triple.p), std.string.toString(triple.o));
+					cache_query_result.addTriple(ss2, fromStringz(triple.p), fromStringz(triple.o));
 				} catch(Exception ex)
 				{
 					// при первом же сбое в кэше, отключим его к чертям собачьим :)
@@ -510,35 +512,35 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(s !is null)
 		{
-			ss = std.string.toString(s);
+			ss = fromStringz(s);
 			ss1 = ss;
 			//						log.trace("GET TRIPLES #0 len(s)={}", strlen(s));
 		}
 		else
 		{
-			ss1 = "#";
+			ss1 = cast(char[])"#";
 		}
 
 		if(p !is null)
 		{
-			pp = std.string.toString(p);
+			pp = fromStringz(p);
 			pp1 = pp;
 			//						log.trace("GET TRIPLES #0 len(p)={}", strlen(p));
 		}
 		else
 		{
-			pp1 = "#";
+			pp1 = cast(char[])"#";
 		}
 
 		if(o !is null)
 		{
-			oo = std.string.toString(o);
+			oo = fromStringz(o);
 			oo1 = oo;
 			//						log.trace("GET TRIPLES #0, len(o)={}", strlen(o));
 		}
 		else
 		{
-			oo1 = "#";
+			oo1 = cast(char[])"#";
 		}
 
 		total_count_queries++;
@@ -600,13 +602,13 @@ class TripleStorageMongoDB: TripleStorage
 
 			if(s !is null)
 			{
-				bson_append_string(&bb, "ss", s);
+				bson_append_string(&bb, cast(char[])"ss", s);
 				//							bson_append_int(&bb2, "ss", 1);
 			}
 
 			if(p !is null && o !is null)
 			{
-				bson_append_string(&bb, p, o);
+				bson_append_stringz(&bb, p, o);
 				//							bson_append_int(&bb2, "pp", 1);
 			}
 
@@ -741,8 +743,8 @@ class TripleStorageMongoDB: TripleStorage
 									{
 										try
 										{
-											cache_query_result.addTriple(std.string.toString(triple.s), std.string.toString(triple.p),
-													std.string.toString(triple.o));
+											cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p),
+													fromStringz(triple.o));
 
 										} catch(IndexException ex)
 										{
@@ -863,7 +865,7 @@ class TripleStorageMongoDB: TripleStorage
 
 						try
 						{
-							cache_query_result.addTriple(std.string.toString(triple.s), std.string.toString(triple.p), std.string.toString(triple.o));
+							cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
 						} catch(IndexException ex)
 						{
 							// при первом же сбое в кэше, отключим его к чертям собачьим :)
@@ -919,25 +921,25 @@ class TripleStorageMongoDB: TripleStorage
 		return list;
 	}
 
-	private void logging_query(char[] op, char* s, char* p, char* o, triple_list_element* list)
+	private void logging_query(string op, char* s, char* p, char* o, triple_list_element* list)
 	{
-		char[] a_s = "";
-		char[] a_p = "";
-		char[] a_o = "";
+		char[] a_s = cast(char[])"";
+		char[] a_p = cast(char[])"";
+		char[] a_o = cast(char[])"";
 
 		if(s !is null)
-			a_s = "S";
+			a_s = cast(char[])"S";
 
 		if(p !is null)
-			a_p = "P";
+			a_p = cast(char[])"P";
 
 		if(o !is null)
-			a_o = "O";
+			a_o = cast(char[])"O";
 
 		int count = get_count_form_list_triple(list);
 
 		if (query_log is null)
-			query_log = fopen(query_log_filename.ptr, "w");
+			query_log = fopen(cast(char*)query_log_filename.ptr, "w");
 
 //		auto tm = WallClock.now;
 //		auto dt = Clock.toDate(tm);
@@ -973,8 +975,8 @@ fprintf(query_log,"\t%.*s\n", s);
 		bson_buffer_init(&bb);
 		//		log.trace("remove! #2");
 
-		bson_append_string(&bb, "ss", s.ptr);
-		bson_append_string(&bb, p.ptr, o.ptr);
+		bson_append_string(&bb, cast(char[])"ss", s.ptr);
+		bson_append_string(&bb, p, o.ptr);
 		bson_from_buffer(&query, &bb);
 		mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
 
@@ -1005,7 +1007,7 @@ fprintf(query_log,"\t%.*s\n", s);
 		}
 		else
 		{
-			throw new Exception("remove triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\": triple not found");
+			throw new Exception("remove triple <" ~ cast(string)s ~ "><" ~ cast(string)p ~ ">\"" ~ cast(string)o ~ "\": triple not found");
 		}
 
 		mongo_cursor_destroy(cursor);
@@ -1020,7 +1022,7 @@ fprintf(query_log,"\t%.*s\n", s);
 			bson cond;
 
 			bson_buffer_init(&bb);
-			bson_append_string(&bb, "ss".ptr, s.ptr);
+			bson_append_string(&bb, cast(char[])"ss", s.ptr);
 			bson_from_buffer(&cond, &bb);
 
 			//			if(p == HAS_PART)
@@ -1065,14 +1067,14 @@ fprintf(query_log,"\t%.*s\n", s);
 		bson cond;
 
 		bson_buffer_init(&bb);
-		bson_append_string(&bb, "ss", s.ptr);
+		bson_append_string(&bb, cast(char[])"ss", s.ptr);
 		bson_from_buffer(&cond, &bb);
 
 		if((p in predicate_as_multiple) !is null)
 		{
 			bson_buffer_init(&bb);
 			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
-			bson_append_string(sub, p.ptr, o.ptr);
+			bson_append_string(sub, p, o.ptr);
 			bson_append_finish_object(sub);
 			bson_from_buffer(&op, &bb);
 		}
@@ -1080,7 +1082,8 @@ fprintf(query_log,"\t%.*s\n", s);
 		{
 			bson_buffer_init(&bb);
 			bson_buffer* sub = bson_append_start_object(&bb, "$set");
-			bson_append_string(sub, p.ptr, o.ptr);
+			bson_append_string(sub, p, o.ptr);
+			
 			bson_append_finish_object(sub);
 			bson_from_buffer(&op, &bb);
 		}
@@ -1183,12 +1186,18 @@ fprintf(query_log,"\t%.*s\n", s);
 		log.trace("triple: <{}><{}>\"{}\"", triple.s, triple.p, triple.o);
 	}
 
-	public char[] triple_to_string(Triple* triple)
+	public string triple_to_string(Triple* triple)
 	{
 		if(triple is null)
 			return "";
 
-		return "<" ~ std.string.toString(triple.s) ~ "> <" ~ std.string.toString(triple.p) ~ "> \"" ~ std.string.toString(triple.o) ~ "\".\n";
+		return "<" ~ cast(string)fromStringz(triple.s) ~ "> <" ~ cast(string)fromStringz(triple.p) ~ "> \"" ~ cast(string)fromStringz(triple.o) ~ "\".\n";
 	}
 
 }
+
+char[] fromStringz(char *s)
+{
+    return s ? s[0 .. strlen(s)] : null;
+}
+

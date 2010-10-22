@@ -9,12 +9,12 @@ enum errorCode
 
 class IndexException: Exception
 {
-	public char[] idxName;
+	public string idxName;
 	public int errCode;
 	public uint curLimitParam;
-	public char[] message;
+	public string message;
 
-	this(char[] msg, char[] _idxName, int _errCode, uint _curLimitParam)
+	this(string msg, string _idxName, int _errCode, uint _curLimitParam)
 	{
 		super(msg);
 		message = msg;

@@ -1,7 +1,17 @@
 module trioplax.memory.TripleStorageMemory;
 
 private import std.c.string;
+
+version (D1)
+{
 private import std.stdio;
+}
+
+version (D2)
+{
+private import core.stdc.stdio;
+}
+
 
 private import trioplax.Log;
 private import trioplax.triple;
@@ -257,25 +267,25 @@ class TripleStorageMemory: TripleStorage
 		return list;
 	}
 
-	private void logging_query(char[] op, char* s, char* p, char* o, triple_list_element* list)
+	private void logging_query(string op, char* s, char* p, char* o, triple_list_element* list)
 	{
-		char[] a_s = "";
-		char[] a_p = "";
-		char[] a_o = "";
+		char[] a_s = cast (char[])"";
+		char[] a_p = cast (char[])"";
+		char[] a_o = cast (char[])"";
 
 		if(s !is null)
-			a_s = "S";
+			a_s = cast (char[])"S";
 
 		if(p !is null)
-			a_p = "P";
+			a_p = cast (char[])"P";
 
 		if(o !is null)
-			a_o = "O";
+			a_o = cast (char[])"O";
 
 		int count = get_count_form_list_triple(list);
 
 		if(query_log is null)
-			query_log = fopen(query_log_filename.ptr, "w");
+			query_log = fopen(cast(char*)query_log_filename.ptr, "w");
 
 		//		auto tm = WallClock.now;
 		//		auto dt = Clock.toDate(tm);
@@ -346,7 +356,7 @@ class TripleStorageMemory: TripleStorage
 					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p2, null, dummy);
 					if(listS !is null)
 					{
-						char[] o2 = std.string.toString(listS.triple.o);
+						char[] o2 = fromStringz(listS.triple.o);
 
 						//						log.trace("remove from index sppoo A: p1 = %s, p2 = %s", p1, p2);
 						//						log.trace("### [%s] [%s] [%s]", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
@@ -402,7 +412,7 @@ class TripleStorageMemory: TripleStorage
 					triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p1, null, dummy);
 					if(listS !is null)
 					{
-						char[] o1 = std.string.toString(listS.triple.o);
+						char[] o1 = fromStringz(listS.triple.o);
 
 						listS = idx_s1ppoo.get(look_predicate_pp_on_idx_s1ppoo[i].ptr, o1.ptr, o2.ptr, dummy);
 
@@ -448,7 +458,7 @@ class TripleStorageMemory: TripleStorage
 					if(listS !is null)
 					{
 						log.trace("#1");
-						o1 = std.string.toString(listS.triple.o);
+						o1 = fromStringz(listS.triple.o);
 					}
 
 					log.trace("найдем o2, where s=%s p=%s o=* ", s, p2);
@@ -456,7 +466,7 @@ class TripleStorageMemory: TripleStorage
 					if(listS !is null)
 					{
 						log.trace("#2");
-						o2 = std.string.toString(listS.triple.o);
+						o2 = fromStringz(listS.triple.o);
 					}
 
 					log.trace("look_predicate_pp_on_idx_s1ppoo[i]=%s, o1=%s, o2=%s", look_predicate_pp_on_idx_s1ppoo[i], o1, o2);
@@ -603,7 +613,7 @@ class TripleStorageMemory: TripleStorage
 						}
 
 						// удаляем существующий факт с данным предикатом, таким образом, мы обновим значение предиката новым
-						removeTriple(s, p, std.string.toString(list.triple.o));
+						removeTriple(s, p, fromStringz(list.triple.o));
 						//						throw new Exception("addTriple: for that predicate already has data ");
 
 					}
@@ -633,7 +643,7 @@ class TripleStorageMemory: TripleStorage
 
 					idx_spo.get(cast(char*) s, cast(char*) p, cast(char*) o, dummy);
 
-					throw new Exception("addTriple: not found triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\" in index spo");
+					throw new Exception("addTriple: not found triple <" ~ cast(string)s ~ "><" ~ cast(string)p ~ ">\"" ~ cast(string)o ~ "\" in index spo");
 				}
 
 				triple = list.triple;
@@ -722,7 +732,7 @@ class TripleStorageMemory: TripleStorage
 
 							if(listS !is null)
 							{
-								o2 = std.string.toString(listS.triple.o);
+								o2 = fromStringz(listS.triple.o);
 							}
 
 						}
@@ -738,7 +748,7 @@ class TripleStorageMemory: TripleStorage
 
 							if(listS !is null)
 							{
-								o1 = std.string.toString(listS.triple.o);
+								o1 = fromStringz(listS.triple.o);
 							}
 
 						}
@@ -752,13 +762,13 @@ class TripleStorageMemory: TripleStorage
 							triple_list_element* listS = idx_sp.get(cast(char*) s, cast(char*) p1, null, dummy);
 							if(listS !is null)
 							{
-								o1 = std.string.toString(listS.triple.o);
+								o1 = fromStringz(listS.triple.o);
 							}
 
 							listS = idx_sp.get(cast(char*) s, cast(char*) p2, null, dummy);
 							if(listS !is null)
 							{
-								o2 = std.string.toString(listS.triple.o);
+								o2 = fromStringz(listS.triple.o);
 							}
 
 						}
@@ -902,9 +912,14 @@ class TripleStorageMemory: TripleStorage
 	public char[] triple_to_string(Triple* triple)
 	{
 		if(triple is null)
-			return "";
+			return cast(char[])"";
 
-		return "<" ~ std.string.toString(triple.s) ~ "> <" ~ std.string.toString(triple.p) ~ "> \"" ~ std.string.toString(triple.o) ~ "\".\n";
+		return "<" ~ fromStringz(triple.s) ~ "> <" ~ fromStringz(triple.p) ~ "> \"" ~ fromStringz(triple.o) ~ "\".\n";
 	}
 
+}
+
+char[] fromStringz(char *s)
+{
+    return s ? s[0 .. strlen(s)] : null;
 }
