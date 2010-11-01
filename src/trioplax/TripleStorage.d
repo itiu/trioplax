@@ -8,6 +8,7 @@ interface TripleStorage
 	// main functions
 	
 	public int addTriple(char[] s, char[] p, char[] o);
+	public triple_list_element* getTriples(char*[] s, char*[] p, char*[] o, char*[] read_predicates);
 	public triple_list_element* getTriples(char* s, char* p, char* o);
 	public triple_list_element* getTriplesUseIndexS1PPOO(char* s, char* p, char* o);
 	public bool removeTriple(char[] s, char[] p, char[] o);

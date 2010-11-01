@@ -174,6 +174,13 @@ class TripleStorageMemory: TripleStorage
 		count_look_predicate_on_idx_s1ppoo++;
 	}
 
+	public triple_list_element* getTriples(char*[] s, char*[] p, char*[] o, char*[] read_predicates)
+	{
+		assert (s.length == p.length && s.length == o.length);
+		
+		return null;
+	}
+	
 	public triple_list_element* getTriplesUseIndexS1PPOO(char* s, char* p, char* o)
 	{
 		triple_list_element* list = idx_s1ppoo.get(s, p, o, dummy);
