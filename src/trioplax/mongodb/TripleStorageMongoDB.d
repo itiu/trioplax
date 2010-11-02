@@ -1,3 +1,5 @@
+// TODO логгирование медленных запросов
+
 module trioplax.mongodb.TripleStorageMongoDB;
 
 private import tango.io.Stdout;
@@ -8,6 +10,7 @@ private import tango.stdc.stdlib: calloc;
 private import Integer = tango.text.convert.Integer;
 private import tango.io.device.File;
 private import tango.time.WallClock;
+private import tango.time.StopWatch;
 private import tango.time.Clock;
 private import tango.text.locale.Locale;
 
@@ -218,150 +221,176 @@ class TripleStorageMongoDB: TripleStorage
 
 	public triple_list_element* getTriples(char*[] s, char*[] p, char*[] o, char*[] read_predicates)
 	{
-//		log.trace("getTriples (s[], p[], o[])");
-
-		assert(s.length == p.length && s.length == o.length);
-
-		triple_list_element* list = null;
-		triple_list_element* next_element = null;
-		triple_list_element* prev_element = null;
-
-		bson_buffer bb;
-		bson_buffer bb2;
-		bson fields;
-		bson b;
-
-		bson_buffer_init(&bb2);
-		bson_buffer_init(&bb);
-
-		bson_append_string(&bb2, "ss", "1");
-		//		bson_append_string(&bb2, "mo/at/acl#rt", "1");
-
-		for(short i = 0; i < s.length; i++)
+		try
 		{
-			if(s[i] !is null && strlen(s[i]) > 0)
+			auto elapsed = new StopWatch();
+			//		log.trace("getTriples (s[], p[], o[])");
+
+			assert(s.length == p.length && s.length == o.length);
+
+			triple_list_element* list = null;
+			triple_list_element* next_element = null;
+			triple_list_element* prev_element = null;
+
+			bson_buffer bb;
+			bson_buffer bb2;
+			bson fields;
+			bson query;
+
+			bson_buffer_init(&bb2);
+			bson_buffer_init(&bb);
+
+			bson_append_string(&bb2, "ss", "1");
+			//		bson_append_string(&bb2, "mo/at/acl#rt", "1");
+
+			for(short i = 0; i < s.length; i++)
 			{
-				bson_append_string(&bb, "ss", s[i]);
-
-				//				log.trace("set ss:{}", fromStringz(s[i]));
-			}
-			if(p[i] !is null && o[i] !is null && strlen(o[i]) > 0)
-			{
-				bson_append_string(&bb, p[i], o[i]);
-
-				bson_append_string(&bb2, p[i], "1");
-				//				log.trace("set {}:{}", fromStringz(p[i]), fromStringz(o[i]));
-			}
-		}
-
-		for(short i = 0; i < read_predicates.length; i++)
-		{
-			bson_append_string(&bb2, read_predicates[i], "1");
-			//			log.trace("set field:{}", fromStringz(read_predicates[i]));
-		}
-
-		bson_from_buffer(&fields, &bb2);
-		bson_from_buffer(&b, &bb);
-		
-		log.trace("$");
-		mongo_cursor* cursor = mongo_find(&conn, ns, &b, &fields, 0, 0, 0);
-		log.trace("$");
-		//		mongo_cursor* cursor = mongo_find(&conn, ns, &b, null, 0, 0, 0);
-
-		char*[] result_buff_p = new char*[s.length];
-		char*[] result_buff_o = new char*[s.length];
-		char* ss;
-
-		while(mongo_cursor_next(cursor))
-		{
-			bson_iterator it;
-			bson_iterator_init(&it, cursor.current.data);
-
-			short count_fields = 0;
-			while(bson_iterator_next(&it))
-			{
-				char* name_key = bson_iterator_key(&it);
-
-				switch(bson_iterator_type(&it))
+				if(s[i] !is null && strlen(s[i]) > 0)
 				{
-					case bson_type.bson_string:
-					{
-						char* value = bson_iterator_string(&it);
-						if(strcmp(name_key, "ss".ptr) != 0)
-						{
-							result_buff_p[count_fields] = name_key;
-							result_buff_o[count_fields] = value;
+					bson_append_string(&bb, "ss", s[i]);
 
-							count_fields++;
-						}
-						else
+					//					log.trace("set ss:{}", fromStringz(s[i]));
+				}
+				if(p[i] !is null && o[i] !is null && strlen(o[i]) > 0)
+				{
+					bson_append_string(&bb, p[i], o[i]);
+
+					//					bson_append_string(&bb2, p[i], "1");
+					//					log.trace("set {}:{}", fromStringz(p[i]), fromStringz(o[i]));
+				}
+			}
+
+			for(short i = 0; i < read_predicates.length; i++)
+			{
+				bson_append_string(&bb2, read_predicates[i], "1");
+				//				log.trace("set field:{}", fromStringz(read_predicates[i]));
+			}
+
+			bson_from_buffer(&fields, &bb2);
+			bson_from_buffer(&query, &bb);
+
+			elapsed.start;
+			mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
+			//		mongo_cursor* cursor = mongo_find(&conn, ns, &b, null, 0, 0, 0);
+			double time = elapsed.stop;
+
+			if(time * 1000 > 1)
+			{
+				log.trace("slowpoke query, {} ms :", time * 1000);
+				bson_log(&query);
+			}
+
+			//			log.trace("query is ok, read_predicates.length={}", read_predicates.length);
+
+			char*[] result_buff_p = new char*[read_predicates.length];
+			char*[] result_buff_o = new char*[read_predicates.length];
+			char* ss;
+
+			while(mongo_cursor_next(cursor))
+			{
+				//				log.trace("next of cursor");
+
+				bson_iterator it;
+				bson_iterator_init(&it, cursor.current.data);
+
+				short count_fields = 0;
+				while(bson_iterator_next(&it))
+				{
+					char* name_key = bson_iterator_key(&it);
+					//					log.trace("next field {}", fromStringz(name_key));
+
+					switch(bson_iterator_type(&it))
+					{
+						case bson_type.bson_string:
 						{
-							ss = value;
+							char* value = bson_iterator_string(&it);
+							if(strcmp(name_key, "ss".ptr) != 0 && strcmp(name_key, "_id".ptr) != 0)
+							{
+								result_buff_p[count_fields] = name_key;
+								result_buff_o[count_fields] = value;
+
+								count_fields++;
+								//								log.trace("count_fields= {}", count_fields);
+							}
+							else
+							{
+								ss = value;
+							}
+
 						}
+
+						default:
+						break;
 
 					}
-
-					default:
-					break;
-
 				}
+
+				short s_length = strlen(ss);
+
+				for(short i = 0; i < count_fields; i++)
+				{
+					//					log.trace("[{}] [{}] [{}]", fromStringz(ss), fromStringz(result_buff_p[i]), fromStringz(result_buff_o[i]));
+
+					next_element = elements_in_list + last_used_element_in_pull;
+					next_element.next_triple_list_element = null;
+
+					Triple* triple = triples + last_used_element_in_pull;
+
+					last_used_element_in_pull++;
+					if(last_used_element_in_pull > elements_in_list_max_length)
+						throw new Exception("pull is overflow");
+
+					if(prev_element !is null)
+					{
+						prev_element.next_triple_list_element = next_element;
+					}
+
+					prev_element = next_element;
+					if(list is null)
+					{
+						list = next_element;
+					}
+
+					short p_length = strlen(result_buff_p[i]);
+					short o_length = strlen(result_buff_o[i]);
+
+					char* ts = strings + last_used_element_in_strings;
+					char* tp = ts + s_length + 1;
+					char* to = tp + p_length + 1;
+					last_used_element_in_strings += s_length + p_length + o_length + 3;
+
+					strcpy(ts, ss);
+					strcpy(tp, result_buff_p[i]);
+					strcpy(to, result_buff_o[i]);
+
+					triple.s = ts;
+					triple.p = tp;
+					triple.o = to;
+
+					next_element.triple = triple;
+				}
+
 			}
 
-			short s_length = strlen(ss);
+			mongo_cursor_destroy(cursor);
+			bson_destroy(&query);
+			bson_destroy(&fields);
 
-			for(short i = 0; i < count_fields; i++)
-			{
-				//				log.trace("[{}] [{}] [{}]", fromStringz(ss), fromStringz(result_buff_p[i]), fromStringz(result_buff_o[i]));
-
-				next_element = elements_in_list + last_used_element_in_pull;
-				next_element.next_triple_list_element = null;
-
-				Triple* triple = triples + last_used_element_in_pull;
-
-				last_used_element_in_pull++;
-				if(last_used_element_in_pull > elements_in_list_max_length)
-					throw new Exception("pull is overflow");
-
-				if(prev_element !is null)
-				{
-					prev_element.next_triple_list_element = next_element;
-				}
-
-				prev_element = next_element;
-				if(list is null)
-				{
-					list = next_element;
-				}
-
-				short p_length = strlen(result_buff_p[i]);
-				short o_length = strlen(result_buff_o[i]);
-
-				char* ts = strings + last_used_element_in_strings;
-				char* tp = ts + s_length + 1;
-				char* to = tp + p_length + 1;
-				last_used_element_in_strings += s_length + p_length + o_length + 3;
-
-				strcpy(ts, ss);
-				strcpy(tp, result_buff_p[i]);
-				strcpy(to, result_buff_o[i]);
-
-				triple.s = ts;
-				triple.p = tp;
-				triple.o = to;
-
-				next_element.triple = triple;
-			}
-
+			//			log.trace("@return");
+			return list;
+		} catch(Exception ex)
+		{
+			log.trace("@exception:", ex.msg);
+			throw ex;
 		}
 
-		//		log.trace("@return");
-		return list;
 	}
 
 	private char[] p_rt = "mo/at/acl#rt\0";
 
 	public triple_list_element* getTriplesUseIndexS1PPOO(char* s, char* p, char* o)
 	{
+		auto elapsed = new StopWatch();
 
 		char ss1[];
 		char pp1[];
@@ -432,7 +461,7 @@ class TripleStorageMongoDB: TripleStorage
 		}
 
 		bson_buffer bb;
-		bson b;
+		bson query;
 
 		bson_buffer_init(&bb);
 
@@ -444,9 +473,17 @@ class TripleStorageMongoDB: TripleStorage
 			bson_append_string(&bb, "mo/at/acl#eId", o);
 		}
 
-		bson_from_buffer(&b, &bb);
+		bson_from_buffer(&query, &bb);
 
-		mongo_cursor* cursor = mongo_find(&conn, ns, &b, null, 0, 0, 0);
+		elapsed.start;
+		mongo_cursor* cursor = mongo_find(&conn, ns, &query, null, 0, 0, 0);
+		double time = elapsed.stop;
+
+		if(time * 1000 > 1)
+		{
+			log.trace("slowpoke query, {} ms :", time * 1000);
+			bson_log(&query);
+		}
 
 		//		log.trace("getTriplesUseIndex #2");
 
@@ -595,7 +632,7 @@ class TripleStorageMongoDB: TripleStorage
 			logging_query("GET USE INDEX", s, p, o, list);
 
 		mongo_cursor_destroy(cursor);
-		bson_destroy(&b);
+		bson_destroy(&query);
 
 		if(list !is null && f_trace_list_pull == true)
 		{
@@ -641,6 +678,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public triple_list_element* getTriples(char* s, char* p, char* o)
 	{
+		auto elapsed = new StopWatch();
 		int dummy;
 
 		char ss[];
@@ -767,8 +805,17 @@ class TripleStorageMongoDB: TripleStorage
 		int length_list = 0;
 
 		//		log.trace("GET TRIPLES #6");
+
+		elapsed.start;
 		mongo_cursor* cursor = null;
 		cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
+		double time = elapsed.stop;
+
+		if(time * 1000 > 1)
+		{
+			log.trace("slowpoke query, {} ms :", time * 1000);
+			bson_log(&query);
+		}
 
 		//		log.trace("GET TRIPLES #7");
 		while(mongo_cursor_next(cursor))
@@ -1099,6 +1146,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public bool removeTriple(char[] s, char[] p, char[] o)
 	{
+		auto elapsed = new StopWatch();
 		//		log.trace("TripleStorageMongoDB:remove triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\"");
 
 		if(s is null || p is null || o is null)
@@ -1119,7 +1167,16 @@ class TripleStorageMongoDB: TripleStorage
 		bson_append_string(&bb, "ss", s.ptr);
 		bson_append_string(&bb, p.ptr, o.ptr);
 		bson_from_buffer(&query, &bb);
+
+		elapsed.start;
 		mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
+		double time = elapsed.stop;
+
+		if(time * 1000 > 1)
+		{
+			log.trace("slowpoke query, {} ms :", time * 1000);
+			bson_log(&query);
+		}
 
 		//		log.trace("remove! #3");
 
@@ -1334,4 +1391,58 @@ class TripleStorageMongoDB: TripleStorage
 		return "<" ~ fromStringz(triple.s) ~ "> <" ~ fromStringz(triple.p) ~ "> \"" ~ fromStringz(triple.o) ~ "\".\n";
 	}
 
+}
+
+void bson_log_raw(char* data, int depth)
+{
+	bson_iterator i;
+	char* key;
+	int temp;
+	char oidhex[25];
+	bson_iterator_init(&i, data);
+
+	log.trace("{");
+
+	while(bson_iterator_next(&i))
+	{
+		bson_type t = bson_iterator_type(&i);
+		if(t == 0)
+			break;
+		key = bson_iterator_key(&i);
+
+		switch(t)
+		{
+			case bson_type.bson_int:
+				log.trace("  {}:{}", fromStringz(cast(char*) key), bson_iterator_int(&i));
+			break;
+			case bson_type.bson_double:
+				log.trace("  {}:{}", fromStringz(cast(char*) key), bson_iterator_double(&i));
+			break;
+			case bson_type.bson_bool:
+				log.trace("  {}:{}", fromStringz(cast(char*) key), bson_iterator_bool(&i) ? "true" : "false");
+			break;
+			case bson_type.bson_string:
+				log.trace("  {}:{}", fromStringz(cast(char*) key), fromStringz(bson_iterator_string(&i)));
+			break;
+			case bson_type.bson_null:
+				log.trace("  {}:null", fromStringz(cast(char*) key));
+			break;
+			case bson_type.bson_oid:
+				bson_oid_to_string(bson_iterator_oid(&i), cast(char*) &oidhex);
+				log.trace("  {}:{}", fromStringz(cast(char*) key), oidhex);
+			break; //@@@ cast (char*)&oidhex)
+			case bson_type.bson_object:
+			case bson_type.bson_array:
+				bson_log_raw(bson_iterator_value(&i), depth + 1);
+			break;
+			default:
+				log.trace("  {}, can't print type : {}", fromStringz(cast(char*) key), t);
+		}
+	}
+	log.trace("}");
+}
+
+void bson_log(bson* b)
+{
+	bson_log_raw(b.data, 0);
 }
