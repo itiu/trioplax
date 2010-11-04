@@ -224,7 +224,7 @@ class TripleStorageMongoDB: TripleStorage
 		try
 		{
 			auto elapsed = new StopWatch();
-			//		log.trace("getTriples (s[], p[], o[])");
+//			log.trace("getTriples (s[], p[], o[])");
 
 			assert(s.length == p.length && s.length == o.length);
 
@@ -245,18 +245,19 @@ class TripleStorageMongoDB: TripleStorage
 
 			for(short i = 0; i < s.length; i++)
 			{
+//				log.trace("i = {} , [{}][{}][{}]", i, fromStringz (s[i]), fromStringz (p[i]), fromStringz (o[i]));
 				if(s[i] !is null && strlen(s[i]) > 0)
 				{
 					bson_append_string(&bb, "ss", s[i]);
 
-					//					log.trace("set ss:{}", fromStringz(s[i]));
+//										log.trace("query: param ss:{}", fromStringz(s[i]));
 				}
 				if(p[i] !is null && o[i] !is null && strlen(o[i]) > 0)
 				{
 					bson_append_string(&bb, p[i], o[i]);
 
 					//					bson_append_string(&bb2, p[i], "1");
-					//					log.trace("set {}:{}", fromStringz(p[i]), fromStringz(o[i]));
+//										log.trace("query: param {}:{}", fromStringz(p[i]), fromStringz(o[i]));
 				}
 			}
 
@@ -329,7 +330,7 @@ class TripleStorageMongoDB: TripleStorage
 
 				for(short i = 0; i < count_fields; i++)
 				{
-					//					log.trace("[{}] [{}] [{}]", fromStringz(ss), fromStringz(result_buff_p[i]), fromStringz(result_buff_o[i]));
+//					log.trace("[{}] [{}] [{}]", fromStringz(ss), fromStringz(result_buff_p[i]), fromStringz(result_buff_o[i]));
 
 					next_element = elements_in_list + last_used_element_in_pull;
 					next_element.next_triple_list_element = null;
@@ -338,7 +339,7 @@ class TripleStorageMongoDB: TripleStorage
 
 					last_used_element_in_pull++;
 					if(last_used_element_in_pull > elements_in_list_max_length)
-						throw new Exception("pull is overflow");
+						throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
 
 					if(prev_element !is null)
 					{
@@ -564,7 +565,7 @@ class TripleStorageMongoDB: TripleStorage
 
 			last_used_element_in_pull++;
 			if(last_used_element_in_pull > elements_in_list_max_length)
-				throw new Exception("pull is overflow");
+				throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
 
 			length_list++;
 
@@ -901,7 +902,7 @@ class TripleStorageMongoDB: TripleStorage
 
 									last_used_element_in_pull++;
 									if(last_used_element_in_pull > elements_in_list_max_length)
-										throw new Exception("pull is overflow");
+									    throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
 
 									if(prev_element !is null)
 									{
@@ -1020,7 +1021,7 @@ class TripleStorageMongoDB: TripleStorage
 
 					last_used_element_in_pull++;
 					if(last_used_element_in_pull > elements_in_list_max_length)
-						throw new Exception("pull is overflow");
+					    throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
 
 					length_list++;
 
