@@ -75,7 +75,7 @@ class TripleStorageMongoDB: TripleStorage
 	private char[] P2;
 	private char[] store_predicate_in_list_on_idx_s1ppoo;
 
-	this(char[] host, int port, string collection)
+	this(string host, int port, string collection)
 	{
 		col = cast (char*) collection;
 		ns = cast (char*) (collection ~ ".simple");
