@@ -51,8 +51,8 @@ class TripleStorageMongoDB: TripleStorage
 	private triple_list_element*[] used_list = null;
 
 	private char[] buff = null;
-	private char* col = cast (char*)"az1";
-	private char* ns = cast (char*)"az1.simple";
+	private char* col = cast (char*)"coll1";
+	private char* ns = cast (char*)"coll1.simple";
 
 	//	private char[][1024] query_of_used_lists;
 	//	private char[][triple_list_element*] used_lists_pull;
@@ -75,8 +75,10 @@ class TripleStorageMongoDB: TripleStorage
 	private char[] P2;
 	private char[] store_predicate_in_list_on_idx_s1ppoo;
 
-	this(char[] host, int port)
+	this(char[] host, int port, string collection)
 	{
+		col = cast (char*) collection;
+		ns = cast (char*) (collection ~ ".simple");
 		triples = cast(Triple*) calloc(Triple.sizeof, max_length_pull * average_list_size);
 		strings_max_length = max_length_pull * average_list_size * 3 * 256;
 		strings = cast(char*) calloc(char.sizeof, strings_max_length);
