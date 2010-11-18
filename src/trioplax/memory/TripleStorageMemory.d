@@ -927,7 +927,7 @@ class TripleStorageMemory: TripleStorage
 		throw new Exception ("TripleStorageMemory.isExistSubject not implemented");
 	}
 
-	public triple_list_element* getTriples(ref Triple[] triples, char[][] read_predicates)
+	public triple_list_element* getTriplesOfMask(ref Triple[] triples, char[][] read_predicates)
 	{
 		throw new Exception ("TripleStorageMemory.getTriples(triple[], char*[] read_predicates) not implemented");		
 	}

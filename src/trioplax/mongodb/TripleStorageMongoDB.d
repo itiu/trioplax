@@ -1223,7 +1223,7 @@ class TripleStorageMongoDB: TripleStorage
 				triple.o) ~ "\".\n";
 	}
 
-	public triple_list_element* getTriples(ref Triple[] mask_triples, char[][] read_predicates)
+	public triple_list_element* getTriplesOfMask(ref Triple[] mask_triples, char[][] read_predicates)
 	{
 		try
 		{
