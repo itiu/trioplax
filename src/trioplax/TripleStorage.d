@@ -11,6 +11,9 @@ interface TripleStorage
 	public triple_list_element* getTriples(char* s, char* p, char* o);
 	public triple_list_element* getTriples(char[] s, char[] p, char[] o);
 	public triple_list_element* getTriplesUseIndexS1PPOO(char* s, char* p, char* o);
+	
+	public bool isExistSubject (char[] subject); 
+	
 	public bool removeTriple(char[] s, char[] p, char[] o);
 	
 	// configure functions	

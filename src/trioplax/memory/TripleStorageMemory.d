@@ -922,6 +922,12 @@ class TripleStorageMemory: TripleStorage
 		return "<" ~ fromStringz(triple.s) ~ "> <" ~ fromStringz(triple.p) ~ "> \"" ~ fromStringz(triple.o) ~ "\".\n";
 	}
 
+	public bool isExistSubject (char[] subject)
+	{
+		throw new Exception ("TripleStorageMemory.isExistSubject not implemented");
+	}
+	
+	
 }
 
 char[] fromStringz(char *s)
