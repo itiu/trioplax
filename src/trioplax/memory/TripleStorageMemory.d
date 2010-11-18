@@ -187,7 +187,12 @@ class TripleStorageMemory: TripleStorage
 
 		return list;
 	}
-
+	
+	public triple_list_element* getTriples(char[] s, char[] p, char[] o)
+	{
+	 return getTriples (s.ptr, p.ptr, o.ptr);
+        }
+        
 	public triple_list_element* getTriples(char* s, char* p, char* o)
 	{
 		bool debug_info = false;
