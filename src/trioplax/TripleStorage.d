@@ -3,11 +3,16 @@ module trioplax.TripleStorage;
 private import trioplax.triple;
 //private import tango.io.device.File;
 
+public immutable byte _NONE = 0;
+public immutable byte _RU = 1;
+public immutable byte _EN = 2;
+
 interface TripleStorage
 {
 	// main functions
 	
-	public int addTriple(char[] s, char[] p, char[] o);
+	public int addTriple(char[] s, char[] p, char[] o, byte lang=_NONE);
+	
 	public triple_list_element* getTriples(char* s, char* p, char* o);
 	public triple_list_element* getTriples(char[] s, char[] p, char[] o);
 	public triple_list_element* getTriplesUseIndexS1PPOO(char[] s, char[] p, char[] o);

@@ -25,9 +25,6 @@ private import bson;
 private import md5;
 private import mongo;
 
-//private import trioplax.memory.TripleStorageMemory;
-//private import trioplax.memory.TripleHashMap;
-//private import trioplax.memory.IndexException;
 
 class TripleStorageMongoDB: TripleStorage
 {
@@ -35,14 +32,10 @@ class TripleStorageMongoDB: TripleStorage
 	private FILE* query_log = null;
 
 	private long total_count_queries = 0;
-	//	private long count_queries_in_cache = 0;
 
 	private int max_length_pull = 1024 * 10;
 	private int average_list_size = 3;
 
-	//	private int strings_max_length = 0;
-	//	private char* strings = null;
-	//	private int last_used_element_in_strings = 0;
 
 	private Triple* triples = null;
 
@@ -56,10 +49,6 @@ class TripleStorageMongoDB: TripleStorage
 	private char* col = cast(char*) "coll1";
 	private char* ns = cast(char*) "coll1.simple";
 
-	//	private char[][1024] query_of_used_lists;
-	//	private char[][triple_list_element*] used_lists_pull;
-	//	private int count_used_lists = 0;
-
 	private int count_all_allocated_lists = 0;
 	private int max_length_list = 0;
 	private int max_use_pull = 0;
@@ -70,30 +59,27 @@ class TripleStorageMongoDB: TripleStorage
 
 	private mongo_connection conn;
 
-	//	private TripleStorageMemory cache_query_result = null;
-	//	private HashMap list_query = null;
-
 	private char[] P1;
 	private char[] P2;
 	private char[] store_predicate_in_list_on_idx_s1ppoo;
 
 	char[][] myCreatedString;
 	int count_of_myCreatedString;
+	int max_of_myCreatedString = 10_000;
 
 	this(string host, int port, string collection)
 	{
-		myCreatedString = new char[][10_000];
+		myCreatedString = new char[][max_of_myCreatedString];
 		count_of_myCreatedString = 0;
-		
-		for (int i = 0; i < myCreatedString.length; i++)
+
+		for(int i = 0; i < myCreatedString.length; i++)
 			myCreatedString[i] = new char[255];
+		//		myCreatedString[] = new char[255];
 
 		col = cast(char*) collection;
 		ns = cast(char*) (collection ~ ".simple");
 		triples = cast(Triple*) calloc(Triple.sizeof, max_length_pull * average_list_size);
-		//		strings_max_length = max_length_pull * average_list_size * 3 * 256;
-		//		strings = cast(char*) calloc(char.sizeof, strings_max_length);
-
+		
 		elements_in_list_max_length = max_length_pull * average_list_size;
 		elements_in_list = cast(triple_list_element*) calloc(triple_list_element.sizeof, elements_in_list_max_length);
 
@@ -119,16 +105,6 @@ class TripleStorageMongoDB: TripleStorage
 
 	public void set_cache()
 	{
-		//		cache_query_result = new TripleStorageMemory(300_000, 5, 10_000_000);
-		//		cache_query_result.set_new_index(idx_name.S, 300_000, 5, 10_000_000);
-		//		cache_query_result.set_new_index(idx_name.O, 300_000, 5, 10_000_000);
-		//		cache_query_result.set_new_index(idx_name.PO, 300_000, 5, 10_000_000);
-		//		cache_query_result.set_new_index(idx_name.SP, 300_000, 6, 10_000_000);
-		//		cache_query_result.set_new_index(idx_name.S1PPOO, 300_000, 5, 10_000_000);
-
-		//		cache_query_result.set_log_query_mode(log_query);
-
-		//		list_query = new HashMap("list_query", 300_000, 10_000_000, 5);
 	}
 
 	public void set_log_query_mode(bool on_off)
@@ -139,26 +115,11 @@ class TripleStorageMongoDB: TripleStorage
 	public void release_all_lists()
 	{
 		last_used_element_in_pull = 0;
-		//		last_used_element_in_strings = 0;
-
-		//		used_lists_pull = null;
-		//count_used_lists = 0;
-
-		//		char[][] values = used_lists_pull.values;
-
-		//		for(int i = 0; i < values.length; i++)
-		//		{
-		//			log.trace("used list of query {}", values[i]);
-		//		}
-
 	}
 
 	public void define_predicate_as_multiple(char[] predicate)
 	{
 		predicate_as_multiple[predicate] = true;
-
-		//		if(cache_query_result !is null)
-		//			cache_query_result.define_predicate_as_multiple(predicate);
 
 		log.trace("define predicate [{}] as multiple", predicate);
 	}
@@ -167,49 +128,6 @@ class TripleStorageMongoDB: TripleStorage
 
 	public void list_no_longer_required(triple_list_element* first_element_of_list)
 	{
-		/*
-		 if(first_element_of_list !is null)
-		 {
-		 if(f_trace_list_pull)
-		 {
-		 log.trace("list_no_longer_required ({:X4}), length={}", first_element_of_list, used_lists_pull.length);
-
-		 if((first_element_of_list in used_lists_pull) is null)
-		 throw new Exception("как так?");
-
-		 used_lists_pull.remove(first_element_of_list);
-		 }
-
-		 triple_list_element* list_iterator = first_element_of_list;
-		 while(list_iterator !is null)
-		 {
-		 Triple* triple = list_iterator.triple;
-
-		 if(triple.s !is null)
-		 free(triple.s);
-
-		 if(triple.p !is null)
-		 free(triple.p);
-
-		 if(triple.o !is null)
-		 free(triple.o);
-
-		 free(cast(void*) triple);
-
-		 triple_list_element* tmp = list_iterator;
-
-		 list_iterator = list_iterator.next_triple_list_element;
-
-		 free(cast(void*) tmp);
-		 }
-
-		 count_used_lists--;
-		 if(f_trace_list_pull)
-		 {
-		 log.trace ("list_no_longer_required.. ok");
-		 }
-		 }
-		 */
 	}
 
 	public void set_new_index(ubyte index, uint max_count_element, uint max_length_order, uint inital_triple_area_length)
@@ -225,84 +143,17 @@ class TripleStorageMongoDB: TripleStorage
 		P1 = _P1;
 		P2 = _P2;
 		store_predicate_in_list_on_idx_s1ppoo = _store_predicate_in_list_on_idx_s1ppoo;
-
-		//		if(cache_query_result !is null)
-		//			cache_query_result.setPredicatesToS1PPOO(P1, P2, store_predicate_in_list_on_idx_s1ppoo);
 	}
 
 	private char[] p_rt = cast(char[]) "mo/at/acl#rt\0";
 
 	public triple_list_element* getTriplesUseIndexS1PPOO(char[] s, char[] p, char[] o)
 	{
-
-		//		char ss1[];
-		//		char pp1[];
-		//		char oo1[];
-		//
-		//		if(s !is null)
-		//			ss1 = fromStringz(s);
-		//		else
-		//			ss1 = cast(char[]) "#";
-		//
-		//		if(p !is null)
-		//			pp1 = fromStringz(p);
-		//		else
-		//			pp1 = cast(char[]) "#";
-		//
-		//		if(o !is null)
-		//			oo1 = fromStringz(o);
-		//		else
-		//			oo1 = cast(char[]) "#";
-
 		total_count_queries++;
 
 		triple_list_element* list_in_cache = null;
 
 		bool f_is_query_stored = false;
-
-		// проверим, был ли такой запрос закешированн
-		//		log.trace("S1PPOO is_query_in_cache? (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-		//		list_query.f_trace_put = true;
-		//		if(list_query !is null)
-		//		{
-		//			int dummy;
-		//			triple_list_element* is_query_in_cache = list_query.get(ss1.ptr, pp1.ptr, oo1.ptr, dummy);
-		//			if(is_query_in_cache !is null)
-		//			{
-		//				//			log.trace("S1PPOO query_is_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-		//
-		//				//			list_in_cache = S1PPOO_IDX.get(s, p, o, dummy);
-		//				list_in_cache = cache_query_result.getTriplesUseIndexS1PPOO(s, p, o);
-		//
-		//				if(log_query == true)
-		//					logging_query("GET USE INDEX FROM CACHE", s, p, o, list_in_cache);
-		//
-		//				return list_in_cache;
-		//			}
-		//
-		//			//		bool fS1 = false;
-		//
-		//			if(is_query_in_cache is null)
-		//			{
-		//				log.trace("S1PPOO query_is_not_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-		//
-		//				try
-		//				{
-		//					list_query.put(ss1, pp1, oo1, null);
-		//					f_is_query_stored = true;
-		//					count_queries_in_cache++;
-		//
-		//				}
-		//				catch(IndexException ex)
-		//				{
-		//					// при первом же сбое в кэше, отключим его к чертям собачьим :)
-		//					cache_query_result = null;
-		//					list_query = null;
-		//
-		//					log.trace("S1PPOO query is not add in cache [list_query]: exception: {}", ex.message);
-		//				}
-		//			}
-		//		}
 
 		bson_buffer bb;
 		bson b;
@@ -337,15 +188,8 @@ class TripleStorageMongoDB: TripleStorage
 
 			char[] ts = null;
 			char[] tp = null;
-			//strings + last_used_element_in_strings;
 
-			//			last_used_element_in_strings += p_rt.length;
 
-			//			if(last_used_element_in_strings > strings_max_length)
-			//				throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-			//			char* tp = cast(char*) calloc(byte.sizeof, "mo/at/acl#rt".length + 1);
-			//			strncpy(tp, p_rt.ptr, p_rt.length);
 			tp = p_rt;
 
 			char[] to = null;
@@ -367,25 +211,10 @@ class TripleStorageMongoDB: TripleStorage
 
 						if(name_key == "ss")
 						{
-							//							ts = strings + last_used_element_in_strings;
-
-							//							last_used_element_in_strings += len + 1;
-							//							if(last_used_element_in_strings > strings_max_length)
-							//								throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-							//								ts = cast(char*) calloc(byte.sizeof, len + 1);
-							//							strcpy(ts, value);
 							ts = value;
 						}
 						else if(name_key == "mo/at/acl#rt")
 						{
-							//							to = strings + last_used_element_in_strings;
-							//							last_used_element_in_strings += len + 1;
-							//							if(last_used_element_in_strings > strings_max_length)
-							//								throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-							//							to = cast(char*) calloc(byte.sizeof, len + 1);
-							//							strcpy(to, value);
 							to = value;
 						}
 						break;
@@ -422,52 +251,11 @@ class TripleStorageMongoDB: TripleStorage
 			}
 			//			log.trace ("list={:X8}, next_element={:X8}, last_used_element_in_pull={}", list, next_element, last_used_element_in_pull);  
 
-			//			Triple* triple = cast(Triple*) calloc(Triple.sizeof, 1);
 			triple.s = ts;
 			triple.p = tp;
 			triple.o = to;
 
 			next_element.triple = triple;
-
-			//			if(f_is_query_stored == true)
-			//			{
-			//				//				log.trace("#1");
-			//				//				S1PPOO_IDX.put (ss1, pp1, oo1, triple);
-			//				//				log.trace("#2");
-			//				char[] ss2 = fromStringz(triple.s);
-			//
-			//				try
-			//				{
-			//					cache_query_result.addTriple(ss2, P1, pp1);
-			//					cache_query_result.addTriple(ss2, P2, oo1);
-			//
-			//					cache_query_result.addTriple(ss2, fromStringz(triple.p), fromStringz(triple.o));
-			//				}
-			//				catch(Exception ex)
-			//				{
-			//					// при первом же сбое в кэше, отключим его к чертям собачьим :)
-			//					cache_query_result = null;
-			//					list_query = null;
-			//				}
-			//
-			//				//				log.trace("S1PPOO cache_query_result.addTriple <{}><{}>\"{}\"", toString(triple.s), toString(triple.p), toString(triple.o));
-			//
-			//				//				log.trace("check adding ");
-			//				//				list_in_cache = cache_query_result.getTriplesUseIndexS1PPOO(s, p, o);
-			//				//				if (list_in_cache !is null)
-			//				//				{
-			//				//					log.trace("OK");
-			//				//				}
-			//				//				else
-			//				//				{
-			//				//					throw new Exception (trioplax.mongodb.TripleStorageMongoDB.stringof ~ " check adding FAIL");					
-			//				//				}
-			//
-			//			}
-
-			//			log.trace("get #9, list[{:X4}], triple[{:X4}], triple.o[{:X4}]", &list, triple, triple.o);
-
-			//			log.trace("get:result <{}> <{}> \"{}\"", ts, tp, to);
 		}
 
 		if(log_query == true)
@@ -478,41 +266,7 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(list !is null && f_trace_list_pull == true)
 		{
-
-			//@@@@@
-			/*			
-			 char ss[];
-			 char pp[];
-			 char oo[];
-
-			 if(s !is null)
-			 ss = toString(s);
-
-			 if(p !is null)
-			 pp = toString(p);
-
-			 if(o !is null)
-			 oo = toString(o);
-
-			 if(count_used_lists < max_length_pull)
-			 {
-			 used_lists_pull[list] = "GET USE INDEX S=" ~ ss ~ ", P=" ~ pp ~ ", O=" ~ oo;
-			 //				log.trace("get ({:X4}), length={}", list, used_lists_pull.length);
-
-			 //				query_of_used_lists[count_used_lists] = "GET USE INDEX S=" ~ ss ~ ", P=" ~ pp ~ ", O= " ~ oo;
-			 //				used_lists_pull[count_used_lists] = list;
-			 }
-
-			 if(length_list > max_length_list)
-			 max_length_list = length_list;
-
-			 if(used_lists_pull.length > max_use_pull)
-			 max_use_pull = used_lists_pull.length;
-			 */
-			//		count_used_lists++;
 			count_all_allocated_lists++;
-			//			if(count_all_allocated_lists % 1000 == 0)
-			//				print_stat();
 		}
 
 		return list;
@@ -577,74 +331,11 @@ class TripleStorageMongoDB: TripleStorage
 
 		int dummy;
 
-		//		char ss1[];
-		//		char pp1[];
-		//		char oo1[];
-		//
-		//		if(s !is null)
-		//			ss1 = s;
-		//		else
-		//			ss1 = cast(char[]) "#";
-		//
-		//		if(p !is null)
-		//			pp1 = p;
-		//		else
-		//			pp1 = cast(char[]) "#";
-		//
-		//		if(o !is null)
-		//			oo1 = o;
-		//		else
-		//			oo1 = cast(char[]) "#";
-
 		total_count_queries++;
 
 		triple_list_element* list_in_cache = null;
 
 		bool f_is_query_stored = false;
-
-		//		if(list_query !is null)
-		//		{
-		//			// проверим, был ли такой запрос закешированн
-		//			//		log.trace("is_query_in_cache? (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-		//			//		list_query.f_trace_put = true;
-		//
-		//			triple_list_element* is_query_in_cache = list_query.get(ss1.ptr, pp1.ptr, oo1.ptr, dummy);
-		//			if(is_query_in_cache !is null)
-		//			{
-		//				//				log.trace("query_is_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-		//
-		//				list_in_cache = cache_query_result.getTriples(s.ptr, p.ptr, o.ptr);
-		//
-		//				if(log_query == true)
-		//					logging_query("GET FROM CACHE", s, p, o, list_in_cache);
-		//
-		//				//				log.trace("list_in_cache={:X8}", list_in_cache);
-		//				return list_in_cache;
-		//			}
-
-		//			if(is_query_in_cache is null)
-		//			{
-		//				//				log.trace("query_is_not_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-		//
-		//				try
-		//				{
-		//					list_query.put(ss1, pp1, oo1, null);
-		//					f_is_query_stored = true;
-		//					count_queries_in_cache++;
-		//				}
-		//				catch(IndexException ex)
-		//				{
-		//					// при первом же сбое в кэше, отключим его к чертям собачьим :)
-		//					cache_query_result = null;
-		//					list_query = null;
-		//
-		//					log.trace("query is not add in cache [list_query]: exception: {}", ex.message);
-		//				}
-		//			}
-		//		}
-		//		log.trace("total_count_queries={}, count_queries_in_cache={}", total_count_queries, count_queries_in_cache);
-
-		//		log.trace("GET TRIPLES <{}> <{}> \"{}\"", ss, pp, oo);
 
 		bson_buffer bb, bb2;
 		bson query;
@@ -707,59 +398,23 @@ class TripleStorageMongoDB: TripleStorage
 						char[] value = fromStringz(bson_iterator_string(&it));
 						//						int len = strlen(value);
 
-						//	if(len > 0)
 						{
 							//	log.trace("name_key=[{}], value=[{}], len={}", toString(name_key), toString(value), len);
 
 							if(name_key == "ss")
 							{
-								//								ts = cast(char*) calloc(byte.sizeof, len + 1);
-								//								ts = strings + last_used_element_in_strings;
-								//								last_used_element_in_strings += len + 1;
-								//								if(last_used_element_in_strings > strings_max_length)
-								//									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-								//								strcpy(ts, value);
 								ts = value;
 							}
 							else if(p !is null && name_key == p)
 							{
-								//	to = cast(char*) calloc(byte.sizeof, len + 1);
-								//								to = strings + last_used_element_in_strings;
-								//								last_used_element_in_strings += len + 1;
-								//								if(last_used_element_in_strings > strings_max_length)
-								//									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-								//								strcpy(to, value);
 								to = value;
 							}
 							else if(p is null)
 							{
-								//	ts = cast(char*) calloc(byte.sizeof, strlen(s) + 1);
-								//								ts = strings + last_used_element_in_strings;
-								//								last_used_element_in_strings += strlen(s.ptr) + 1;
-								//								if(last_used_element_in_strings > strings_max_length)
-								//									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-								//								strcpy(ts, s.ptr);
 								ts = s;
 
-								//	tp = cast(char*) calloc(byte.sizeof, strlen(name_key) + 1);
-								//								tp = strings + last_used_element_in_strings;
-								//								last_used_element_in_strings += strlen(name_key) + 1;
-								//								if(last_used_element_in_strings > strings_max_length)
-								//									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-								//								strcpy(tp, name_key);
 								tp = name_key;
 
-								//	to = cast(char*) calloc(byte.sizeof, len + 1);
-								//								to = strings + last_used_element_in_strings;
-								//								last_used_element_in_strings += len + 1;
-								//								if(last_used_element_in_strings > strings_max_length)
-								//									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-								//								strcpy(to, value);
 								to = value;
 
 								if(ts !is null && tp !is null && to !is null)
@@ -786,74 +441,16 @@ class TripleStorageMongoDB: TripleStorage
 										list = next_element;
 									}
 
-									//									log.trace ("list={:X8}, next_element={:X8}, last_used_element_in_pull={}", list, next_element, last_used_element_in_pull);  
-									//			log.trace("GET TRIPLES #10");
-
-									//									Triple* triple = cast(Triple*) calloc(Triple.sizeof, 1);
-									//									log.trace ("new triple, ballance={}", ballanse);
-
 									triple.s = ts;
 									triple.p = tp;
 									triple.o = to;
 
 									next_element.triple = triple;
-
-									//									if(f_is_query_stored == true)
-									//									{
-									//										try
-									//										{
-									//											cache_query_result.addTriple(triple.s, fromStringz(triple.p),
-									//													fromStringz(triple.o));
-									//
-									//										}
-									//										catch(IndexException ex)
-									//										{
-									//											// при первом же сбое в кэше, отключим его к чертям собачьим :)
-									//											cache_query_result = null;
-									//											list_query = null;
-									//										}
-									//										//										log.trace("cache_query_result.addTriple");
-									//									}
-									//			log.trace("get #11, list[{:X4}], triple[{:X4}]", list, triple);
-
-									//									log.trace("get:result <{}> <{}> \"{}\"", toString(ts), toString(tp),
-									//											toString(to));
 								}
 							}
 						}
 
 					break;
-					/*
-					 case bson_type.bson_array:
-
-					 bson_iterator sub_it;
-					 bson_iterator_subiterator(&it, &sub_it);
-
-					 while(bson_iterator_next(&sub_it))
-					 {
-					 switch(bson_iterator_type(&sub_it))
-					 {
-					 case bson_type.bson_string:
-
-					 char* value = bson_iterator_string(&sub_it);
-					 int len = strlen(value);
-
-					 if(len > 0)
-					 {
-					 //										log.trace("sub:name_key=[{}], value=[{}], len={}", toString(name_key),
-					 //												toString(value), len);
-					 }
-
-					 break;
-
-					 default:
-					 break;
-					 }
-
-					 }
-
-					 break;
-					 */
 					default:
 					break;
 				}
@@ -861,24 +458,6 @@ class TripleStorageMongoDB: TripleStorage
 
 			if(p !is null)
 			{
-				//				tp = cast(char*) calloc(byte.sizeof, strlen(p) + 1);
-				//				tp = strings + last_used_element_in_strings;
-				//				last_used_element_in_strings += strlen(p.ptr) + 1;
-				//				if(last_used_element_in_strings > strings_max_length)
-				//					throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-				//				strcpy(tp, p.ptr);
-
-				//				if(o !is null)
-				//				{
-				//					to = cast(char*) calloc(byte.sizeof, strlen(o) + 1);
-				//					to = strings + last_used_element_in_strings;
-				//					last_used_element_in_strings += strlen(o.ptr) + 1;
-				//					if(last_used_element_in_strings > strings_max_length)
-				//						throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-				//					strcpy(to, o.ptr);
-				//				}
 
 				if(ts !is null && tp !is null && to !is null)
 				{
@@ -911,37 +490,13 @@ class TripleStorageMongoDB: TripleStorage
 
 					//			log.trace("GET TRIPLES #10");
 
-					//					Triple* triple = cast(Triple*) calloc(Triple.sizeof, 1);
-					//					triple.s = ts;
 					triple.s = s;
-					//					triple.p = tp;
 					triple.p = p;
-					//					triple.o = to;
 					triple.o = o;
 
 					//					log.trace ("new triple, ballance={}", ballanse);
 
 					next_element.triple = triple;
-
-					//					if(f_is_query_stored == true)
-					//					{
-
-					//						try
-					//						{
-					//							cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
-					//						}
-					//						catch(IndexException ex)
-					//						{
-					// при первом же сбое в кэше, отключим его к чертям собачьим :)
-					//							cache_query_result = null;
-					//							list_query = null;
-					//						}
-					//						//						log.trace("cache_query_result.addTriple");
-					//					}
-
-					//			log.trace("get #11, list[{:X4}], triple[{:X4}]", list, triple);
-
-					//					log.trace("get:result <{}> <{}> \"{}\"", toString(ts), toString(tp), toString(to));
 				}
 			}
 		}
@@ -955,31 +510,8 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(list !is null && f_trace_list_pull == true)
 		{
-			/*
-			 if(count_used_lists < max_length_pull)
-			 {
-			 used_lists_pull[list] = "GET S=" ~ ss ~ ", P=" ~ pp ~ ", O=" ~ oo;
-			 //				log.trace("get ({:X4}), length={}", list, used_lists_pull.length);
-			 //				query_of_used_lists[count_used_lists] = "GET S=" ~ ss ~ ", P=" ~ pp ~ ", O= " ~ oo;
-			 //				used_lists_pull[count_used_lists] = list;
-			 }
-
-			 if(length_list > max_length_list)
-			 max_length_list = length_list;
-
-			 if(used_lists_pull.length > max_use_pull)
-			 max_use_pull = used_lists_pull.length;
-			 */
-			//		count_used_lists++;
 			count_all_allocated_lists++;
-			//			if(count_all_allocated_lists % 1000 == 0)
-			//				print_stat();
 		}
-
-		//		if(f_is_query_stored == true)
-		//		{
-		//			cache_query_result.print_stat();
-		//		}		
 
 		//		log.trace("list={:X8}", list);
 		sw.stop();
@@ -1132,11 +664,13 @@ class TripleStorageMongoDB: TripleStorage
 
 	bool f_trace_addTriple = false;
 
-	public int addTriple(char[] s, char[] p, char[] o)
+	public int addTriple(char[] s, char[] p, char[] o, byte lang = _NONE)
 	{
 		StopWatch sw;
 		sw.start();
-		//		log.trace("TripleStorageMongoDB:add triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\"");
+
+		writeln("TripleStorageMongoDB:add triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\" lang=", lang);
+
 		bson_buffer bb;
 
 		bson op;
@@ -1150,7 +684,14 @@ class TripleStorageMongoDB: TripleStorage
 		{
 			bson_buffer_init(&bb);
 			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
-			bson_append_stringA(sub, p, o);
+
+			if(lang == _NONE)
+				bson_append_stringA(sub, p, o);
+			else if(lang == _RU)
+				bson_append_stringA(sub, p ~ "@ru", o);
+			if(lang == _EN)
+				bson_append_stringA(sub, p ~ "@en", o);
+
 			bson_append_finish_object(sub);
 			bson_from_buffer(&op, &bb);
 		}
@@ -1158,7 +699,14 @@ class TripleStorageMongoDB: TripleStorage
 		{
 			bson_buffer_init(&bb);
 			bson_buffer* sub = bson_append_start_object(&bb, "$set");
-			bson_append_stringA(sub, p, o);
+//			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
+
+			if(lang == _NONE)
+				bson_append_stringA(sub, p, o);
+			else if(lang == _RU)
+				bson_append_stringA(sub, p ~ "@ru", o);
+			if(lang == _EN)
+				bson_append_stringA(sub, p ~ "@en", o);
 
 			bson_append_finish_object(sub);
 			bson_from_buffer(&op, &bb);
@@ -1459,40 +1007,44 @@ class TripleStorageMongoDB: TripleStorage
 
 	char[] fromStringz(char* s)
 	{
-		//					char* name_key = bson_iterator_key(&it);
-		//					printf("next field %s\n", name_key);
+		//		char[] res = s ? s[0 .. strlen(s)] : null;
 
-		int len = strlen (s);
+		// для того чтоб GC не уничтожил созданные строки внутри методов этого класса, 
+		// складируем созданные char[] в массив экземпляра класса.   
+
+		int len = strlen(s);
 		char[] res = myCreatedString[count_of_myCreatedString];
-		
-		strncpy (res.ptr, s, len);
+
 		res.length = len;
+		strncpy(res.ptr, s, len);
 		count_of_myCreatedString++;
-		
-		
-//		char[] res = s ? s[0 .. strlen(s)] : null;
-//		if(res !is null)
-//		{
-//			myCreatedString[count_of_myCreatedString] = res;
-//			count_of_myCreatedString++;
-//		}
+
+		if(count_of_myCreatedString >= max_of_myCreatedString)
+		{
+			count_of_myCreatedString = 0;
+		}
+
 		return res;
 	}
 
 	char[] fromStringz(char* s, int len)
 	{
+		//		char[] res = s ? s[0 .. len] : null;
+
+		// для того чтоб GC не уничтожил созданные строки внутри методов этого класса, 
+		// складируем созданные char[] в массив экземпляра класса.   
+
 		char[] res = myCreatedString[count_of_myCreatedString];
-		
-		strncpy (res.ptr, s, len);
+
 		res.length = len;
+		strncpy(res.ptr, s, len);
 		count_of_myCreatedString++;
-//		char[] res = s ? s[0 .. len] : null;
-//		if(res !is null)
-//		{
-//			myCreatedString[count_of_myCreatedString] = res;
-//			count_of_myCreatedString++;
-//		}
+
+		if(count_of_myCreatedString >= max_of_myCreatedString)
+		{
+			count_of_myCreatedString = 0;
+		}
+
 		return res;
 	}
 }
-

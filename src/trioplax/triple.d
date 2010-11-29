@@ -4,7 +4,10 @@ struct Triple
     char[] s;
     char[] p;
     char[] o;
+    
+    string lang;
 }
+
 struct triple_list_element
 {
     Triple* triple;
