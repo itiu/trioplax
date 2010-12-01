@@ -25,7 +25,6 @@ private import bson;
 private import md5;
 private import mongo;
 
-
 class TripleStorageMongoDB: TripleStorage
 {
 	string query_log_filename = "triple-storage-io";
@@ -35,7 +34,6 @@ class TripleStorageMongoDB: TripleStorage
 
 	private int max_length_pull = 1024 * 10;
 	private int average_list_size = 3;
-
 
 	private Triple* triples = null;
 
@@ -79,7 +77,7 @@ class TripleStorageMongoDB: TripleStorage
 		col = cast(char*) collection;
 		ns = cast(char*) (collection ~ ".simple");
 		triples = cast(Triple*) calloc(Triple.sizeof, max_length_pull * average_list_size);
-		
+
 		elements_in_list_max_length = max_length_pull * average_list_size;
 		elements_in_list = cast(triple_list_element*) calloc(triple_list_element.sizeof, elements_in_list_max_length);
 
@@ -189,7 +187,6 @@ class TripleStorageMongoDB: TripleStorage
 			char[] ts = null;
 			char[] tp = null;
 
-
 			tp = p_rt;
 
 			char[] to = null;
@@ -209,7 +206,7 @@ class TripleStorageMongoDB: TripleStorage
 
 						//						printf("(string) \"%s \" %d\n", value, len);
 
-						if(name_key == "ss")
+						if(name_key == "SUBJECT")
 						{
 							ts = value;
 						}
@@ -289,7 +286,7 @@ class TripleStorageMongoDB: TripleStorage
 
 			if(subject !is null)
 			{
-				bson_append_stringA(&bb, cast(char[]) "ss", subject);
+				bson_append_stringA(&bb, cast(char[]) "SUBJECT", subject);
 			}
 
 			bson_from_buffer(&query, &bb);
@@ -347,19 +344,23 @@ class TripleStorageMongoDB: TripleStorage
 
 			if(s !is null)
 			{
-				bson_append_stringA(&bb, cast(char[]) "ss", s);
-				//							bson_append_int(&bb2, "ss", 1);
+				bson_append_stringA(&bb, cast(char[]) "SUBJECT", s);
 			}
 
 			if(p !is null && o !is null)
 			{
 				bson_append_stringA(&bb, p, o);
-				//							bson_append_int(&bb2, "pp", 1);
 			}
 
+//			bson_append_int(&bb2, cast(char*)"SUBJECT", 1);
+//			if (p !is null)
+//			{
+//				bson_append_stringA(&bb2, p, cast(char[]) "1");
+//			}
+			
 			//		log.trace("GET TRIPLES #4");
-			bson_from_buffer(&query, &bb);
 			bson_from_buffer(&fields, &bb2);
+			bson_from_buffer(&query, &bb);
 
 		}
 
@@ -374,7 +375,6 @@ class TripleStorageMongoDB: TripleStorage
 		mongo_cursor* cursor = null;
 		cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
 
-		//		log.trace("GET TRIPLES #7");
 		while(mongo_cursor_next(cursor))
 		{
 			bson_iterator it;
@@ -384,69 +384,72 @@ class TripleStorageMongoDB: TripleStorage
 			char[] tp = null;
 			char[] to = null;
 
-			//			log.trace("GET TRIPLES #8");
+//			printf("GET TRIPLES #8\n");
 
 			while(bson_iterator_next(&it))
 			{
-
-				char[] name_key = fromStringz(bson_iterator_key(&it));
 
 				switch(bson_iterator_type(&it))
 				{
 					case bson_type.bson_string:
 
+						char[] name_key = fromStringz(bson_iterator_key(&it));
+//						writeln("name_key=[", name_key, "]");
+
 						char[] value = fromStringz(bson_iterator_string(&it));
-						//						int len = strlen(value);
-
+//						writeln(" value=[", value, "]");
 						{
-							//	log.trace("name_key=[{}], value=[{}], len={}", toString(name_key), toString(value), len);
 
-							if(name_key == "ss")
+							if(name_key == "SUBJECT")
 							{
+								writeln("ts = value");
 								ts = value;
-							}
+							}							
+
 							else if(p !is null && name_key == p)
 							{
-								to = value;
-							}
-							else if(p is null)
-							{
-								ts = s;
-
+								writeln("to = value");
 								tp = name_key;
+								to = value;								
+							}
+							
+							if (p is null)
+							{
+								tp = name_key;
+								to = value;																
+							}
+							
+							if(ts !is null && tp !is null && to !is null)
+							{
+//								writeln("if(ts !is null && tp !is null && to !is null)");
 
-								to = value;
+								//	next_element = cast(triple_list_element*) calloc(triple_list_element.sizeof, 1);
+								next_element = elements_in_list + last_used_element_in_pull;
+								next_element.next_triple_list_element = null;
 
-								if(ts !is null && tp !is null && to !is null)
+								Triple* triple = triples + last_used_element_in_pull;
+
+								last_used_element_in_pull++;
+								if(last_used_element_in_pull > elements_in_list_max_length)
+									throw new Exception("pull is overflow");
+
+								if(prev_element !is null)
 								{
-									//	next_element = cast(triple_list_element*) calloc(triple_list_element.sizeof, 1);
-									next_element = elements_in_list + last_used_element_in_pull;
-									next_element.next_triple_list_element = null;
-
-									Triple* triple = triples + last_used_element_in_pull;
-
-									last_used_element_in_pull++;
-									if(last_used_element_in_pull > elements_in_list_max_length)
-										throw new Exception("pull is overflow");
-
-									if(prev_element !is null)
-									{
-										prev_element.next_triple_list_element = next_element;
-									}
-
-									prev_element = next_element;
-									if(list is null)
-									{
-										//										log.trace("getTriples [{}] [{}] [{}]", toString(s), toString(p), toString(o));
-										list = next_element;
-									}
-
-									triple.s = ts;
-									triple.p = tp;
-									triple.o = to;
-
-									next_element.triple = triple;
+									prev_element.next_triple_list_element = next_element;
 								}
+
+								prev_element = next_element;
+								if(list is null)
+								{
+									//										log.trace("getTriples [{}] [{}] [{}]", toString(s), toString(p), toString(o));
+									list = next_element;
+								}
+
+								triple.s = ts;
+								triple.p = tp;
+								triple.o = to;
+
+								next_element.triple = triple;
 							}
 						}
 
@@ -580,7 +583,7 @@ class TripleStorageMongoDB: TripleStorage
 		bson_buffer_init(&bb);
 		//		log.trace("remove! #2");
 
-		bson_append_stringA(&bb, cast(char[]) "ss", s);
+		bson_append_stringA(&bb, cast(char[]) "SUBJECT", s);
 		bson_append_stringA(&bb, p, o);
 		bson_from_buffer(&query, &bb);
 		mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
@@ -628,7 +631,7 @@ class TripleStorageMongoDB: TripleStorage
 			bson cond;
 
 			bson_buffer_init(&bb);
-			bson_append_stringA(&bb, cast(char[]) "ss", s);
+			bson_append_stringA(&bb, cast(char[]) "SUBJECT", s);
 			bson_from_buffer(&cond, &bb);
 
 			//			if(p == HAS_PART)
@@ -677,7 +680,7 @@ class TripleStorageMongoDB: TripleStorage
 		bson cond;
 
 		bson_buffer_init(&bb);
-		bson_append_stringA(&bb, cast(char[]) "ss", s);
+		bson_append_stringA(&bb, cast(char[]) "SUBJECT", s);
 		bson_from_buffer(&cond, &bb);
 
 		if((p in predicate_as_multiple) !is null)
@@ -699,7 +702,7 @@ class TripleStorageMongoDB: TripleStorage
 		{
 			bson_buffer_init(&bb);
 			bson_buffer* sub = bson_append_start_object(&bb, "$set");
-//			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
+			//			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
 
 			if(lang == _NONE)
 				bson_append_stringA(sub, p, o);
@@ -842,7 +845,7 @@ class TripleStorageMongoDB: TripleStorage
 			bson_buffer_init(&bb2);
 			bson_buffer_init(&bb);
 
-			bson_append_stringA(&bb2, cast(char[]) "ss", cast(char[]) "1");
+			bson_append_stringA(&bb2, cast(char[]) "SUBJECT", cast(char[]) "1");
 			//		bson_append_stringA(&bb2, "mo/at/acl#rt", "1");
 
 			for(short i = 0; i < mask_triples.length; i++)
@@ -850,7 +853,7 @@ class TripleStorageMongoDB: TripleStorage
 				//			log.trace("i = {} , [{}][{}][{}]", i, fromStringz (s[i]), fromStringz (p[i]), fromStringz (o[i]));
 				if(mask_triples[i].s !is null && mask_triples[i].s.length > 0)
 				{
-					bson_append_stringA(&bb, cast(char[]) "ss", mask_triples[i].s);
+					bson_append_stringA(&bb, cast(char[]) "SUBJECT", mask_triples[i].s);
 
 					//									log.trace("query: param ss:{}", fromStringz(s[i]));
 				}
@@ -890,7 +893,6 @@ class TripleStorageMongoDB: TripleStorage
 				short count_fields = 0;
 				while(bson_iterator_next(&it))
 				{
-					char[] _name_key = fromStringz(bson_iterator_key(&it));
 					//					char* name_key = bson_iterator_key(&it);
 					//					printf("next field %s\n", name_key);
 
@@ -904,6 +906,7 @@ class TripleStorageMongoDB: TripleStorage
 					{
 						case bson_type.bson_string:
 						{
+							char[] _name_key = fromStringz(bson_iterator_key(&it));
 
 							char[] _value = fromStringz(bson_iterator_string(&it));
 							//							char* value = bson_iterator_string(&it);
@@ -914,7 +917,7 @@ class TripleStorageMongoDB: TripleStorage
 							//							_value.length = len;
 							//							ggg++;
 
-							if(_name_key != "ss" && _name_key != "_id")
+							if(_name_key != "SUBJECT" && _name_key != "_id")
 							{
 								result_buff_p[count_fields] = _name_key;
 								result_buff_o[count_fields] = _value;
