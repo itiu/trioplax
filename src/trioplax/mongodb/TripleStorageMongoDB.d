@@ -352,12 +352,12 @@ class TripleStorageMongoDB: TripleStorage
 				bson_append_stringA(&bb, p, o);
 			}
 
-//			bson_append_int(&bb2, cast(char*)"SUBJECT", 1);
-//			if (p !is null)
-//			{
-//				bson_append_stringA(&bb2, p, cast(char[]) "1");
-//			}
-			
+			//			bson_append_int(&bb2, cast(char*)"SUBJECT", 1);
+			//			if (p !is null)
+			//			{
+			//				bson_append_stringA(&bb2, p, cast(char[]) "1");
+			//			}
+
 			//		log.trace("GET TRIPLES #4");
 			bson_from_buffer(&fields, &bb2);
 			bson_from_buffer(&query, &bb);
@@ -384,7 +384,7 @@ class TripleStorageMongoDB: TripleStorage
 			char[] tp = null;
 			char[] to = null;
 
-//			printf("GET TRIPLES #8\n");
+			//			printf("GET TRIPLES #8\n");
 
 			while(bson_iterator_next(&it))
 			{
@@ -394,34 +394,34 @@ class TripleStorageMongoDB: TripleStorage
 					case bson_type.bson_string:
 
 						char[] name_key = fromStringz(bson_iterator_key(&it));
-//						writeln("name_key=[", name_key, "]");
+						//						writeln("name_key=[", name_key, "]");
 
 						char[] value = fromStringz(bson_iterator_string(&it));
-//						writeln(" value=[", value, "]");
+						//						writeln(" value=[", value, "]");
 						{
 
 							if(name_key == "SUBJECT")
 							{
-								writeln("ts = value");
+								//								writeln("ts = value");
 								ts = value;
-							}							
+							}
 
 							else if(p !is null && name_key == p)
 							{
-								writeln("to = value");
+								//								writeln("to = value");
 								tp = name_key;
-								to = value;								
+								to = value;
 							}
-							
-							if (p is null)
+
+							if(p is null)
 							{
 								tp = name_key;
-								to = value;																
+								to = value;
 							}
-							
+
 							if(ts !is null && tp !is null && to !is null)
 							{
-//								writeln("if(ts !is null && tp !is null && to !is null)");
+								//								writeln("if(ts !is null && tp !is null && to !is null)");
 
 								//	next_element = cast(triple_list_element*) calloc(triple_list_element.sizeof, 1);
 								next_element = elements_in_list + last_used_element_in_pull;
@@ -825,14 +825,16 @@ class TripleStorageMongoDB: TripleStorage
 		return cast(string) ("<" ~ triple.s ~ "> <" ~ triple.p ~ "> \"" ~ triple.o ~ "\".\n");
 	}
 
-	public triple_list_element* getTriplesOfMask(ref Triple[] mask_triples, char[][] read_predicates)
+	public triple_list_element* getTriplesOfMask(ref Triple[] mask_triples, bool[char[]] reading_predicates)
 	{
-		printf("getTriplesOfMask\n");
+		StopWatch sw;
+		sw.start();
+				printf("getTriplesOfMask\n");
 
+//				read_predicates = read_predicates.sort;
+				
 		try
 		{
-			int ggg = 0;
-
 			triple_list_element* list = null;
 			triple_list_element* next_element = null;
 			triple_list_element* prev_element = null;
@@ -854,22 +856,35 @@ class TripleStorageMongoDB: TripleStorage
 				if(mask_triples[i].s !is null && mask_triples[i].s.length > 0)
 				{
 					bson_append_stringA(&bb, cast(char[]) "SUBJECT", mask_triples[i].s);
+					writeln("set param field:SUBJECT = [", mask_triples[i].s, "], length=", mask_triples[i].s.length);
 
 					//									log.trace("query: param ss:{}", fromStringz(s[i]));
 				}
 				if(mask_triples[i].p !is null && mask_triples[i].o !is null && mask_triples[i].o.length > 0)
 				{
 					bson_append_stringA(&bb, mask_triples[i].p, mask_triples[i].o);
+					writeln("set param field:", mask_triples[i].p, " = [", mask_triples[i].o, "], length=", mask_triples[i].o.length);
 
 					//					bson_append_stringA(&bb2, p[i], "1");
 					//									log.trace("query: param {}:{}", fromStringz(p[i]), fromStringz(o[i]));
 				}
 			}
 
-			for(short i = 0; i < read_predicates.length; i++)
+			foreach(xx ; reading_predicates.keys)
 			{
-				bson_append_stringA(&bb2, read_predicates[i], cast(char[]) "1");
-				//				log.trace("set field:{}", fromStringz(read_predicates[i]));
+				// TODO ? надо что то с этим делать, так языковой параметр хранить не удобно
+				if(xx == "swrc:name")
+				{
+					bson_append_stringA(&bb2, xx ~ "@en", cast(char[]) "1");
+					writeln("set out field:", xx ~ "@en");
+					bson_append_stringA(&bb2, xx ~ "@ru", cast(char[]) "1");
+					writeln("set out field:", xx ~ "@ru");
+				}
+				else
+				{
+					bson_append_stringA(&bb2, cast(char[])xx, cast(char[]) "1");
+					writeln("set out field:", xx);
+				}
 			}
 
 			bson_from_buffer(&fields, &bb2);
@@ -879,8 +894,8 @@ class TripleStorageMongoDB: TripleStorage
 			//		mongo_cursor* cursor = mongo_find(&conn, ns, &b, null, 0, 0, 0);
 			//			log.trace("query is ok, read_predicates.length={}", read_predicates.length);
 
-			char[][] result_buff_p = new char[][read_predicates.length];
-			char[][] result_buff_o = new char[][read_predicates.length];
+			char[][] result_buff_p = new char[][reading_predicates.length];
+			char[][] result_buff_o = new char[][reading_predicates.length];
 			char[] ss;
 
 			while(mongo_cursor_next(cursor))
@@ -893,37 +908,26 @@ class TripleStorageMongoDB: TripleStorage
 				short count_fields = 0;
 				while(bson_iterator_next(&it))
 				{
-					//					char* name_key = bson_iterator_key(&it);
-					//					printf("next field %s\n", name_key);
-
-					//					int len = strlen (name_key);
-					//					char[] _name_key = buf_strings[ggg];
-					//					strncpy (_name_key.ptr, name_key, len);
-					//					_name_key.length = len;
-					//					ggg++;
 
 					switch(bson_iterator_type(&it))
 					{
 						case bson_type.bson_string:
 						{
 							char[] _name_key = fromStringz(bson_iterator_key(&it));
+							writeln ("_name_key:", _name_key);
 
 							char[] _value = fromStringz(bson_iterator_string(&it));
-							//							char* value = bson_iterator_string(&it);
-							//							printf("next value %s\n", value);
-							//							len = strlen (value);
-							//							char[] _value = buf_strings[ggg];
-							//							strncpy (_value.ptr, value, len);
-							//							_value.length = len;
-							//							ggg++;
 
 							if(_name_key != "SUBJECT" && _name_key != "_id")
 							{
+//								if ((_name_key in reading_predicates) !is null)
+//								{
 								result_buff_p[count_fields] = _name_key;
 								result_buff_o[count_fields] = _value;
 
 								count_fields++;
-								//								log.trace("count_fields= {}", count_fields);
+								printf("count_fields=%d", count_fields);
+//								}
 							}
 							else
 							{
@@ -937,9 +941,6 @@ class TripleStorageMongoDB: TripleStorage
 
 					}
 				}
-
-				//				short s_length = cast(short) strlen(ss);
-				printf("@@@1\n");
 
 				for(short i = 0; i < count_fields; i++)
 				{
@@ -965,28 +966,24 @@ class TripleStorageMongoDB: TripleStorage
 						list = next_element;
 					}
 
-					//					short p_length = cast(short)strlen(result_buff_p[i]);
-					//					short o_length = cast(short)strlen(result_buff_o[i]);
-
-					//					char* ts = strings + last_used_element_in_strings;
-					//					char* tp = ts + s_length + 1;
-					//					char* to = tp + p_length + 1;
-					//					last_used_element_in_strings += s_length + p_length + o_length + 3;
-
-					//					strcpy(ts, ss);
-					//					strcpy(tp, result_buff_p[i]);
-					//					strcpy(to, result_buff_o[i]);
-
-					//					triple.s = ts;
-					//					triple.p = tp;
-					//					triple.o = to;
 					triple.s = ss;
-					triple.p = result_buff_p[i];
+					char[][] p_tags = std.string.split(result_buff_p[i], "@");
+					
+					if(p_tags[].length > 1)
+					{
+						triple.p = p_tags[0];
+						triple.lang = cast(string)p_tags[1];
+					}
+					else
+					{
+						triple.p = result_buff_p[i];
+					}
+
 					triple.o = result_buff_o[i];
 
 					next_element.triple = triple;
 
-					writeln("first triple S:", next_element.triple.s, " P:", next_element.triple.p, " O:", next_element.triple.o);
+										writeln("first triple S:", next_element.triple.s, " P:", next_element.triple.p, " O:", next_element.triple.o);
 				}
 
 			}
@@ -995,8 +992,13 @@ class TripleStorageMongoDB: TripleStorage
 			bson_destroy(&query);
 			bson_destroy(&fields);
 
-			printf("@@@2\n");
-			//			log.trace("@return");
+			sw.stop();
+			long t = cast(long) sw.peek().microseconds;
+
+			if(t > 100)
+			{
+				printf("total time getTripleOfMask: %d[µs]\n", t);
+			}
 			return list;
 		}
 		catch(Exception ex)

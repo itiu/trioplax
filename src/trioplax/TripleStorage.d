@@ -16,7 +16,7 @@ interface TripleStorage
 	public triple_list_element* getTriples(char* s, char* p, char* o);
 	public triple_list_element* getTriples(char[] s, char[] p, char[] o);
 	public triple_list_element* getTriplesUseIndexS1PPOO(char[] s, char[] p, char[] o);
-	public triple_list_element* getTriplesOfMask(ref Triple[] triples, char[][] read_predicates);
+	public triple_list_element* getTriplesOfMask(ref Triple[] triples, bool[char[]] read_predicates);
 	
 	public bool isExistSubject (char[] subject); 
 	
