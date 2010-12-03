@@ -522,7 +522,7 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(t > 100)
 		{
-			writeln("S:", s, " P:", p, " O:", o);
+			writeln("query-> S:", s, " P:", p, " O:", o);
 			printf("total time getTriple: %d[µs]\n", t);
 		}
 
@@ -856,34 +856,37 @@ class TripleStorageMongoDB: TripleStorage
 				if(mask_triples[i].s !is null && mask_triples[i].s.length > 0)
 				{
 					bson_append_stringA(&bb, cast(char[]) "SUBJECT", mask_triples[i].s);
-					writeln("set param field:SUBJECT = [", mask_triples[i].s, "], length=", mask_triples[i].s.length);
+//					writeln("set param field:SUBJECT = [", mask_triples[i].s, "], length=", mask_triples[i].s.length);
 
 					//									log.trace("query: param ss:{}", fromStringz(s[i]));
 				}
 				if(mask_triples[i].p !is null && mask_triples[i].o !is null && mask_triples[i].o.length > 0)
 				{
 					bson_append_stringA(&bb, mask_triples[i].p, mask_triples[i].o);
-					writeln("set param field:", mask_triples[i].p, " = [", mask_triples[i].o, "], length=", mask_triples[i].o.length);
+//					writeln("set param field:", mask_triples[i].p, " = [", mask_triples[i].o, "], length=", mask_triples[i].o.length);
 
 					//					bson_append_stringA(&bb2, p[i], "1");
 					//									log.trace("query: param {}:{}", fromStringz(p[i]), fromStringz(o[i]));
 				}
 			}
 
+			int count_readed_fields = 0;
 			foreach(xx ; reading_predicates.keys)
 			{
 				// TODO ? надо что то с этим делать, так языковой параметр хранить не удобно
-				if(xx == "swrc:name")
+				if(xx == "swrc:name" || xx == "swrc:firstName" || xx == "swrc:lastName" || xx == "gost19:middleName" || xx == "docs19:position")
 				{
 					bson_append_stringA(&bb2, xx ~ "@en", cast(char[]) "1");
-					writeln("set out field:", xx ~ "@en");
+//					writeln("set out field:", xx ~ "@en");
 					bson_append_stringA(&bb2, xx ~ "@ru", cast(char[]) "1");
-					writeln("set out field:", xx ~ "@ru");
+//					writeln("set out field:", xx ~ "@ru");
+					count_readed_fields += 2;
 				}
 				else
 				{
 					bson_append_stringA(&bb2, cast(char[])xx, cast(char[]) "1");
-					writeln("set out field:", xx);
+//					writeln("set out field:", xx);
+					count_readed_fields++;
 				}
 			}
 
@@ -894,8 +897,8 @@ class TripleStorageMongoDB: TripleStorage
 			//		mongo_cursor* cursor = mongo_find(&conn, ns, &b, null, 0, 0, 0);
 			//			log.trace("query is ok, read_predicates.length={}", read_predicates.length);
 
-			char[][] result_buff_p = new char[][reading_predicates.length];
-			char[][] result_buff_o = new char[][reading_predicates.length];
+			char[][] result_buff_p = new char[][count_readed_fields];
+			char[][] result_buff_o = new char[][count_readed_fields];
 			char[] ss;
 
 			while(mongo_cursor_next(cursor))
@@ -908,15 +911,17 @@ class TripleStorageMongoDB: TripleStorage
 				short count_fields = 0;
 				while(bson_iterator_next(&it))
 				{
+//					writeln ("it++");
 
 					switch(bson_iterator_type(&it))
 					{
 						case bson_type.bson_string:
 						{
 							char[] _name_key = fromStringz(bson_iterator_key(&it));
-							writeln ("_name_key:", _name_key);
+//							writeln ("_name_key:", _name_key);
 
 							char[] _value = fromStringz(bson_iterator_string(&it));
+//							writeln ("_value:", _value);
 
 							if(_name_key != "SUBJECT" && _name_key != "_id")
 							{
@@ -926,7 +931,7 @@ class TripleStorageMongoDB: TripleStorage
 								result_buff_o[count_fields] = _value;
 
 								count_fields++;
-								printf("count_fields=%d", count_fields);
+//								printf("count_fields=%d", count_fields);
 //								}
 							}
 							else
@@ -941,6 +946,7 @@ class TripleStorageMongoDB: TripleStorage
 
 					}
 				}
+//				writeln ("all fields readed");
 
 				for(short i = 0; i < count_fields; i++)
 				{
@@ -983,7 +989,7 @@ class TripleStorageMongoDB: TripleStorage
 
 					next_element.triple = triple;
 
-										writeln("first triple S:", next_element.triple.s, " P:", next_element.triple.p, " O:", next_element.triple.o);
+//										writeln("first triple S:", next_element.triple.s, " P:", next_element.triple.p, " O:", next_element.triple.o);
 				}
 
 			}
