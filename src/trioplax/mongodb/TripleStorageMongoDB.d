@@ -63,10 +63,16 @@ class TripleStorageMongoDB: TripleStorage
 
 	char[][] myCreatedString;
 	int count_of_myCreatedString;
-	int max_of_myCreatedString = 10_000;
+	int max_of_myCreatedString = 100_000;
 
 	this(string host, int port, string collection)
 	{
+		multilang_predicates["swrc:name"] = true;
+		multilang_predicates["swrc:firstName"] = true;
+		multilang_predicates["swrc:lastName"] = true;
+		multilang_predicates["gost19:middleName"] = true;
+		multilang_predicates["docs19:position"] = true;
+
 		myCreatedString = new char[][max_of_myCreatedString];
 		count_of_myCreatedString = 0;
 
@@ -825,14 +831,69 @@ class TripleStorageMongoDB: TripleStorage
 		return cast(string) ("<" ~ triple.s ~ "> <" ~ triple.p ~ "> \"" ~ triple.o ~ "\".\n");
 	}
 
+	bool trace__getTriplesOfMask = false;
+	bool[char[]] multilang_predicates;
+
+	private void add_to_query(char[] field_name, char[] field_value, bson_buffer* bb)
+	{
+		if(trace__getTriplesOfMask)
+			writeln("^^^ field_name = ", field_name, ", field_value=", field_value);
+
+		bool field_is_multilang = (field_name in multilang_predicates) !is null;
+
+		if(field_value !is null && (field_value[0] == '"' && field_value[1] == '[' || field_value[0] == '['))
+		{
+			if(field_value[0] == '[')
+				field_value = field_value[1 .. field_value.length - 1];
+			else
+				field_value = field_value[2 .. field_value.length - 2];
+
+			char[][] values = split(field_value, ",");
+			if(values.length > 0)
+			{
+				bson_buffer* sub = bson_append_start_array(bb, "$or");
+
+				foreach(val; values)
+				{
+					bson_buffer* sub1 = bson_append_start_object(bb, "");
+
+					if(field_is_multilang)
+					{
+						//						bson_append_stringA(sub1, field_name ~ "@en", val);
+						bson_append_stringA(sub1, field_name ~ "@ru", val);
+					}
+					else
+						bson_append_stringA(sub1, field_name, val);
+
+					bson_append_finish_object(sub1);
+				}
+
+				bson_append_finish_object(sub);
+			}
+		}
+		else
+		{
+			if(field_is_multilang)
+			{
+				//				bson_append_stringA(bb, field_name ~ "@en", field_value);
+				bson_append_stringA(bb, field_name ~ "@ru", field_value);
+			}
+			else
+				bson_append_stringA(bb, cast(char[]) field_name, field_value);
+		}
+
+	}
+
 	public triple_list_element* getTriplesOfMask(ref Triple[] mask_triples, bool[char[]] reading_predicates)
 	{
 		StopWatch sw;
 		sw.start();
-				printf("getTriplesOfMask\n");
 
-//				read_predicates = read_predicates.sort;
-				
+		if(trace__getTriplesOfMask)
+			printf("getTriplesOfMask\n");
+
+		//				read_predicates = read_predicates.sort;
+
 		try
 		{
 			triple_list_element* list = null;
@@ -852,46 +913,47 @@ class TripleStorageMongoDB: TripleStorage
 
 			for(short i = 0; i < mask_triples.length; i++)
 			{
-				//			log.trace("i = {} , [{}][{}][{}]", i, fromStringz (s[i]), fromStringz (p[i]), fromStringz (o[i]));
 				if(mask_triples[i].s !is null && mask_triples[i].s.length > 0)
 				{
-					bson_append_stringA(&bb, cast(char[]) "SUBJECT", mask_triples[i].s);
-//					writeln("set param field:SUBJECT = [", mask_triples[i].s, "], length=", mask_triples[i].s.length);
-
-					//									log.trace("query: param ss:{}", fromStringz(s[i]));
+					add_to_query(cast(char[]) "SUBJECT", mask_triples[i].s, &bb);
 				}
 				if(mask_triples[i].p !is null && mask_triples[i].o !is null && mask_triples[i].o.length > 0)
 				{
-					bson_append_stringA(&bb, mask_triples[i].p, mask_triples[i].o);
-//					writeln("set param field:", mask_triples[i].p, " = [", mask_triples[i].o, "], length=", mask_triples[i].o.length);
-
-					//					bson_append_stringA(&bb2, p[i], "1");
-					//									log.trace("query: param {}:{}", fromStringz(p[i]), fromStringz(o[i]));
+					add_to_query(mask_triples[i].p, mask_triples[i].o, &bb);
 				}
 			}
 
 			int count_readed_fields = 0;
-			foreach(xx ; reading_predicates.keys)
+			foreach(xx; reading_predicates.keys)
 			{
 				// TODO ? надо что то с этим делать, так языковой параметр хранить не удобно
-				if(xx == "swrc:name" || xx == "swrc:firstName" || xx == "swrc:lastName" || xx == "gost19:middleName" || xx == "docs19:position")
+				if((xx in multilang_predicates))
 				{
 					bson_append_stringA(&bb2, xx ~ "@en", cast(char[]) "1");
-//					writeln("set out field:", xx ~ "@en");
+					if(trace__getTriplesOfMask)
+						writeln("set out field:", xx ~ "@en");
 					bson_append_stringA(&bb2, xx ~ "@ru", cast(char[]) "1");
-//					writeln("set out field:", xx ~ "@ru");
+					if(trace__getTriplesOfMask)
+						writeln("set out field:", xx ~ "@ru");
 					count_readed_fields += 2;
 				}
 				else
 				{
-					bson_append_stringA(&bb2, cast(char[])xx, cast(char[]) "1");
-//					writeln("set out field:", xx);
+					bson_append_stringA(&bb2, cast(char[]) xx, cast(char[]) "1");
+					if(trace__getTriplesOfMask)
+						writeln("set out field:", xx);
 					count_readed_fields++;
 				}
 			}
 
 			bson_from_buffer(&fields, &bb2);
 			bson_from_buffer(&query, &bb);
+
+			if(trace__getTriplesOfMask)
+			{
+				printf("QUERY:\n");
+				bson_print(&query);
+			}
 
 			mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
 			//		mongo_cursor* cursor = mongo_find(&conn, ns, &b, null, 0, 0, 0);
@@ -901,9 +963,11 @@ class TripleStorageMongoDB: TripleStorage
 			char[][] result_buff_o = new char[][count_readed_fields];
 			char[] ss;
 
+			//			if (mongo_cursor_next(cursor))
 			while(mongo_cursor_next(cursor))
 			{
-				//				log.trace("next of cursor");
+				if(trace__getTriplesOfMask)
+					log.trace("next of cursor");
 
 				bson_iterator it;
 				bson_iterator_init(&it, cursor.current.data);
@@ -911,28 +975,30 @@ class TripleStorageMongoDB: TripleStorage
 				short count_fields = 0;
 				while(bson_iterator_next(&it))
 				{
-//					writeln ("it++");
+					//					writeln ("it++");
 
 					switch(bson_iterator_type(&it))
 					{
 						case bson_type.bson_string:
 						{
 							char[] _name_key = fromStringz(bson_iterator_key(&it));
-//							writeln ("_name_key:", _name_key);
+							if(trace__getTriplesOfMask)
+								writeln("_name_key:", _name_key);
 
 							char[] _value = fromStringz(bson_iterator_string(&it));
-//							writeln ("_value:", _value);
+							if(trace__getTriplesOfMask)
+								writeln("_value:", _value);
 
 							if(_name_key != "SUBJECT" && _name_key != "_id")
 							{
-//								if ((_name_key in reading_predicates) !is null)
-//								{
+								//								if ((_name_key in reading_predicates) !is null)
+								//								{
 								result_buff_p[count_fields] = _name_key;
 								result_buff_o[count_fields] = _value;
 
 								count_fields++;
-//								printf("count_fields=%d", count_fields);
-//								}
+								//								printf("count_fields=%d", count_fields);
+								//								}
 							}
 							else
 							{
@@ -946,7 +1012,7 @@ class TripleStorageMongoDB: TripleStorage
 
 					}
 				}
-//				writeln ("all fields readed");
+				//				writeln ("all fields readed");
 
 				for(short i = 0; i < count_fields; i++)
 				{
@@ -974,11 +1040,11 @@ class TripleStorageMongoDB: TripleStorage
 
 					triple.s = ss;
 					char[][] p_tags = std.string.split(result_buff_p[i], "@");
-					
+
 					if(p_tags[].length > 1)
 					{
 						triple.p = p_tags[0];
-						triple.lang = cast(string)p_tags[1];
+						triple.lang = cast(string) p_tags[1];
 					}
 					else
 					{
@@ -989,7 +1055,8 @@ class TripleStorageMongoDB: TripleStorage
 
 					next_element.triple = triple;
 
-//										writeln("first triple S:", next_element.triple.s, " P:", next_element.triple.p, " O:", next_element.triple.o);
+					//					if(trace__getTriplesOfMask)
+					//						writeln("first triple S:", next_element.triple.s, " P:", next_element.triple.p, " O:", next_element.triple.o);
 				}
 
 			}
@@ -1018,6 +1085,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	char[] fromStringz(char* s)
 	{
+//		printf ("count_of_myCreatedString=%d\n", count_of_myCreatedString);
 		//		char[] res = s ? s[0 .. strlen(s)] : null;
 
 		// для того чтоб GC не уничтожил созданные строки внутри методов этого класса, 
@@ -1040,6 +1108,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	char[] fromStringz(char* s, int len)
 	{
+//		printf ("count_of_myCreatedString=%d\n", count_of_myCreatedString);
 		//		char[] res = s ? s[0 .. len] : null;
 
 		// для того чтоб GC не уничтожил созданные строки внутри методов этого класса, 
