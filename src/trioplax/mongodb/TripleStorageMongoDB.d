@@ -692,14 +692,17 @@ class TripleStorageMongoDB: TripleStorage
 		if((p in predicate_as_multiple) !is null)
 		{
 			bson_buffer_init(&bb);
-			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
+			//			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
+			bson_buffer* sub = bson_append_start_object(&bb, "$push");
 
 			if(lang == _NONE)
 				bson_append_stringA(sub, p, o);
 			else if(lang == _RU)
-				bson_append_stringA(sub, p ~ "@ru", o);
+				bson_append_stringA(sub, p, o ~ "@ru");
+			//				bson_append_stringA(sub, p ~ "@ru", o);
 			if(lang == _EN)
-				bson_append_stringA(sub, p ~ "@en", o);
+				bson_append_stringA(sub, p, o ~ "@en");
+			//				bson_append_stringA(sub, p ~ "@en", o);
 
 			bson_append_finish_object(sub);
 			bson_from_buffer(&op, &bb);
@@ -707,15 +710,27 @@ class TripleStorageMongoDB: TripleStorage
 		else
 		{
 			bson_buffer_init(&bb);
-			bson_buffer* sub = bson_append_start_object(&bb, "$set");
+			//			bson_buffer* sub = bson_append_start_object(&bb, "$push");
 			//			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
+			bson_buffer* sub;
 
 			if(lang == _NONE)
+			{
+				sub = bson_append_start_object(&bb, "$set");
 				bson_append_stringA(sub, p, o);
+			}
 			else if(lang == _RU)
-				bson_append_stringA(sub, p ~ "@ru", o);
+			{
+				sub = bson_append_start_object(&bb, "$push");
+				bson_append_stringA(sub, p, o ~ "@ru");
+				//				bson_append_stringA(sub, p ~ "@ru", o);
+			}
 			if(lang == _EN)
-				bson_append_stringA(sub, p ~ "@en", o);
+			{
+				sub = bson_append_start_object(&bb, "$push");
+				bson_append_stringA(sub, p, o ~ "@en");
+			}
+			//				bson_append_stringA(sub, p ~ "@en", o);
 
 			bson_append_finish_object(sub);
 			bson_from_buffer(&op, &bb);
@@ -858,10 +873,7 @@ class TripleStorageMongoDB: TripleStorage
 					bson_buffer* sub1 = bson_append_start_object(bb, "");
 
 					if(field_is_multilang)
-					{
-						//						bson_append_stringA(sub1, field_name ~ "@en", val);
-						bson_append_stringA(sub1, field_name ~ "@ru", val);
-					}
+						bson_append_stringA(sub1, field_name, val ~ "@ru");
 					else
 						bson_append_stringA(sub1, field_name, val);
 
@@ -875,8 +887,7 @@ class TripleStorageMongoDB: TripleStorage
 		{
 			if(field_is_multilang)
 			{
-				//				bson_append_stringA(bb, field_name ~ "@en", field_value);
-				bson_append_stringA(bb, field_name ~ "@ru", field_value);
+				bson_append_stringA(bb, field_name, field_value ~ "@ru");
 			}
 			else
 				bson_append_stringA(bb, cast(char[]) field_name, field_value);
@@ -891,8 +902,6 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(trace__getTriplesOfMask)
 			printf("getTriplesOfMask\n");
-
-		//				read_predicates = read_predicates.sort;
 
 		try
 		{
@@ -909,7 +918,6 @@ class TripleStorageMongoDB: TripleStorage
 			bson_buffer_init(&bb);
 
 			bson_append_stringA(&bb2, cast(char[]) "SUBJECT", cast(char[]) "1");
-			//		bson_append_stringA(&bb2, "mo/at/acl#rt", "1");
 
 			for(short i = 0; i < mask_triples.length; i++)
 			{
@@ -926,24 +934,12 @@ class TripleStorageMongoDB: TripleStorage
 			int count_readed_fields = 0;
 			foreach(xx; reading_predicates.keys)
 			{
-				// TODO ? надо что то с этим делать, так языковой параметр хранить не удобно
-				if((xx in multilang_predicates))
-				{
-					bson_append_stringA(&bb2, xx ~ "@en", cast(char[]) "1");
-					if(trace__getTriplesOfMask)
-						writeln("set out field:", xx ~ "@en");
-					bson_append_stringA(&bb2, xx ~ "@ru", cast(char[]) "1");
-					if(trace__getTriplesOfMask)
-						writeln("set out field:", xx ~ "@ru");
-					count_readed_fields += 2;
-				}
-				else
-				{
-					bson_append_stringA(&bb2, cast(char[]) xx, cast(char[]) "1");
-					if(trace__getTriplesOfMask)
-						writeln("set out field:", xx);
-					count_readed_fields++;
-				}
+				bson_append_stringA(&bb2, cast(char[]) xx, cast(char[]) "1");
+
+				if(trace__getTriplesOfMask)
+					writeln("set out field:", xx);
+
+				count_readed_fields++;
 			}
 
 			bson_from_buffer(&fields, &bb2);
@@ -956,14 +952,11 @@ class TripleStorageMongoDB: TripleStorage
 			}
 
 			mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
-			//		mongo_cursor* cursor = mongo_find(&conn, ns, &b, null, 0, 0, 0);
-			//			log.trace("query is ok, read_predicates.length={}", read_predicates.length);
 
-			char[][] result_buff_p = new char[][count_readed_fields];
-			char[][] result_buff_o = new char[][count_readed_fields];
-			char[] ss;
+			char[] S;
+			char[] P;
+			char[] O;
 
-			//			if (mongo_cursor_next(cursor))
 			while(mongo_cursor_next(cursor))
 			{
 				if(trace__getTriplesOfMask)
@@ -982,6 +975,7 @@ class TripleStorageMongoDB: TripleStorage
 						case bson_type.bson_string:
 						{
 							char[] _name_key = fromStringz(bson_iterator_key(&it));
+
 							if(trace__getTriplesOfMask)
 								writeln("_name_key:", _name_key);
 
@@ -991,72 +985,53 @@ class TripleStorageMongoDB: TripleStorage
 
 							if(_name_key != "SUBJECT" && _name_key != "_id")
 							{
-								//								if ((_name_key in reading_predicates) !is null)
-								//								{
-								result_buff_p[count_fields] = _name_key;
-								result_buff_o[count_fields] = _value;
+								P = _name_key;
+								O = _value;
 
-								count_fields++;
-								//								printf("count_fields=%d", count_fields);
-								//								}
+								add_triple_in_list(S, P, O, list, next_element, prev_element);
 							}
 							else
 							{
-								ss = _value;
+								S = _value;
 							}
 
+							break;
+						}
+
+						case bson_type.bson_array:
+						{
+							char[] _name_key = fromStringz(bson_iterator_key(&it));
+
+							if(trace__getTriplesOfMask)
+								writeln("_name_key:", _name_key);
+
+							char* val = bson_iterator_value(&it);
+
+							bson_iterator i_1;
+							bson_iterator_init(&i_1, val);
+
+							while(bson_iterator_next(&i_1))
+							{
+								switch(bson_iterator_type(&i_1))
+								{
+									case bson_type.bson_string:
+									{
+										char[] A_value = fromStringz(bson_iterator_string(&i_1));
+
+										add_triple_in_list(S, _name_key, A_value, list, next_element, prev_element);
+									}
+									default:
+									break;
+								}
+
+							}
+							break;
 						}
 
 						default:
 						break;
 
 					}
-				}
-				//				writeln ("all fields readed");
-
-				for(short i = 0; i < count_fields; i++)
-				{
-					//				log.trace("[{}] [{}] [{}]", fromStringz(ss), fromStringz(result_buff_p[i]), fromStringz(result_buff_o[i]));
-
-					next_element = elements_in_list + last_used_element_in_pull;
-					next_element.next_triple_list_element = null;
-
-					Triple* triple = triples + last_used_element_in_pull;
-
-					last_used_element_in_pull++;
-					if(last_used_element_in_pull > elements_in_list_max_length)
-						throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
-
-					if(prev_element !is null)
-					{
-						prev_element.next_triple_list_element = next_element;
-					}
-
-					prev_element = next_element;
-					if(list is null)
-					{
-						list = next_element;
-					}
-
-					triple.s = ss;
-					char[][] p_tags = std.string.split(result_buff_p[i], "@");
-
-					if(p_tags[].length > 1)
-					{
-						triple.p = p_tags[0];
-						triple.lang = cast(string) p_tags[1];
-					}
-					else
-					{
-						triple.p = result_buff_p[i];
-					}
-
-					triple.o = result_buff_o[i];
-
-					next_element.triple = triple;
-
-					//					if(trace__getTriplesOfMask)
-					//						writeln("first triple S:", next_element.triple.s, " P:", next_element.triple.p, " O:", next_element.triple.o);
 				}
 
 			}
@@ -1083,9 +1058,59 @@ class TripleStorageMongoDB: TripleStorage
 
 	}
 
+	private void add_triple_in_list(char[] S, char[] P, char[] O, ref triple_list_element* list, ref triple_list_element* next_element,
+			ref triple_list_element* prev_element)
+	{
+
+		// добавим триплет в возвращаемый список
+		next_element = elements_in_list + last_used_element_in_pull;
+		next_element.next_triple_list_element = null;
+
+		Triple* triple = triples + last_used_element_in_pull;
+
+		last_used_element_in_pull++;
+		if(last_used_element_in_pull > elements_in_list_max_length)
+			throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
+
+		if(prev_element !is null)
+		{
+			prev_element.next_triple_list_element = next_element;
+		}
+
+		prev_element = next_element;
+		if(list is null)
+		{
+			list = next_element;
+		}
+
+		triple.s = S;
+		triple.p = P;
+		char[][] o_tags = std.string.split(O, "@");
+
+		if(o_tags[].length > 1)
+		{
+			triple.o = o_tags[0];
+
+			if(o_tags[1] == "ru")
+				triple.lang = _RU;
+			if(o_tags[1] == "en")
+				triple.lang = _EN;
+		}
+		else
+		{
+			triple.o = O;
+			triple.lang = _NONE;
+		}
+
+		if(trace__getTriplesOfMask)
+			writeln("add triple to the list, S:", triple.s, " P:", triple.p, " O:", triple.o, " lang:", triple.lang);
+
+		next_element.triple = triple;
+	}
+
 	char[] fromStringz(char* s)
 	{
-//		printf ("count_of_myCreatedString=%d\n", count_of_myCreatedString);
+		//		printf ("count_of_myCreatedString=%d\n", count_of_myCreatedString);
 		//		char[] res = s ? s[0 .. strlen(s)] : null;
 
 		// для того чтоб GC не уничтожил созданные строки внутри методов этого класса, 
@@ -1108,7 +1133,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	char[] fromStringz(char* s, int len)
 	{
-//		printf ("count_of_myCreatedString=%d\n", count_of_myCreatedString);
+		//		printf ("count_of_myCreatedString=%d\n", count_of_myCreatedString);
 		//		char[] res = s ? s[0 .. len] : null;
 
 		// для того чтоб GC не уничтожил созданные строки внутри методов этого класса, 

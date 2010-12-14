@@ -5,7 +5,7 @@ struct Triple
     char[] p;
     char[] o;
     
-    string lang;
+    byte lang;
 }
 
 struct triple_list_element
