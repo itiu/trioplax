@@ -678,7 +678,8 @@ class TripleStorageMongoDB: TripleStorage
 		StopWatch sw;
 		sw.start();
 
-		writeln("TripleStorageMongoDB:add triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\" lang=", lang);
+		if(f_trace_addTriple)
+			writeln("TripleStorageMongoDB:add triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\" lang=", lang);
 
 		bson_buffer bb;
 
@@ -689,29 +690,22 @@ class TripleStorageMongoDB: TripleStorage
 		bson_append_stringA(&bb, cast(char[]) "SUBJECT", s);
 		bson_from_buffer(&cond, &bb);
 
+		bson_buffer_init(&bb);
 		if((p in predicate_as_multiple) !is null)
 		{
-			bson_buffer_init(&bb);
-			//			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
-			bson_buffer* sub = bson_append_start_object(&bb, "$push");
+			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
 
 			if(lang == _NONE)
 				bson_append_stringA(sub, p, o);
 			else if(lang == _RU)
 				bson_append_stringA(sub, p, o ~ "@ru");
-			//				bson_append_stringA(sub, p ~ "@ru", o);
 			if(lang == _EN)
 				bson_append_stringA(sub, p, o ~ "@en");
-			//				bson_append_stringA(sub, p ~ "@en", o);
 
 			bson_append_finish_object(sub);
-			bson_from_buffer(&op, &bb);
 		}
 		else
 		{
-			bson_buffer_init(&bb);
-			//			bson_buffer* sub = bson_append_start_object(&bb, "$push");
-			//			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
 			bson_buffer* sub;
 
 			if(lang == _NONE)
@@ -721,20 +715,30 @@ class TripleStorageMongoDB: TripleStorage
 			}
 			else if(lang == _RU)
 			{
-				sub = bson_append_start_object(&bb, "$push");
+				sub = bson_append_start_object(&bb, "$addToSet");
 				bson_append_stringA(sub, p, o ~ "@ru");
-				//				bson_append_stringA(sub, p ~ "@ru", o);
 			}
-			if(lang == _EN)
+			else if(lang == _EN)
 			{
-				sub = bson_append_start_object(&bb, "$push");
+				sub = bson_append_start_object(&bb, "$addToSet");
 				bson_append_stringA(sub, p, o ~ "@en");
 			}
-			//				bson_append_stringA(sub, p ~ "@en", o);
 
 			bson_append_finish_object(sub);
-			bson_from_buffer(&op, &bb);
 		}
+
+		bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
+
+		if(lang == _NONE)
+			bson_append_stringA(sub, cast(char[]) "_keywords", o);
+		else if(lang == _RU)
+			bson_append_stringA(sub, cast(char[]) "_keywords", o ~ "@ru");
+		if(lang == _EN)
+			bson_append_stringA(sub, cast(char[]) "_keywords", o ~ "@en");
+
+		bson_append_finish_object(sub);
+
+		bson_from_buffer(&op, &bb);
 
 		mongo_update(&conn, ns, &cond, &op, 1);
 
@@ -849,6 +853,24 @@ class TripleStorageMongoDB: TripleStorage
 	bool trace__getTriplesOfMask = false;
 	bool[char[]] multilang_predicates;
 
+	private void add_fulltext_to_query(char[] fulltext_param, bson_buffer* bb)
+	{
+		bson_buffer* sub = bson_append_start_object(bb, "_keywords");
+
+		bson_buffer* sub1 = bson_append_start_array(bb, "$all");
+
+		char[][] values = split(fulltext_param, ",");
+		foreach(val; values)
+		{
+			bson_append_regexA(sub1, null, val, null);			
+		}
+		
+
+		bson_append_finish_object(sub1);
+
+		bson_append_finish_object(sub);
+	}
+
 	private void add_to_query(char[] field_name, char[] field_value, bson_buffer* bb)
 	{
 		if(trace__getTriplesOfMask)
@@ -921,13 +943,22 @@ class TripleStorageMongoDB: TripleStorage
 
 			for(short i = 0; i < mask_triples.length; i++)
 			{
-				if(mask_triples[i].s !is null && mask_triples[i].s.length > 0)
+				char[] s = mask_triples[i].s;
+				char[] p = mask_triples[i].p;
+				char[] o = mask_triples[i].o;
+
+				if(s !is null && s.length > 0)
 				{
-					add_to_query(cast(char[]) "SUBJECT", mask_triples[i].s, &bb);
+					add_to_query(cast(char[]) "SUBJECT", s, &bb);
 				}
-				if(mask_triples[i].p !is null && mask_triples[i].o !is null && mask_triples[i].o.length > 0)
+
+				if(p !is null && p == "query:fulltext")
 				{
-					add_to_query(mask_triples[i].p, mask_triples[i].o, &bb);
+					add_fulltext_to_query(o, &bb);
+				}
+				else if(p !is null && o !is null && o.length > 0)
+				{
+					add_to_query(p, o, &bb);
 				}
 			}
 
@@ -983,7 +1014,7 @@ class TripleStorageMongoDB: TripleStorage
 							if(trace__getTriplesOfMask)
 								writeln("_value:", _value);
 
-							if(_name_key != "SUBJECT" && _name_key != "_id")
+							if(_name_key != "SUBJECT" && _name_key != "_id" && _name_key != "_keywords")
 							{
 								P = _name_key;
 								O = _value;
