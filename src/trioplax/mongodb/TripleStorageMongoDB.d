@@ -729,12 +729,14 @@ class TripleStorageMongoDB: TripleStorage
 
 		bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
 
+		char[] l_o = tolower (o);
+		
 		if(lang == _NONE)
-			bson_append_stringA(sub, cast(char[]) "_keywords", o);
+			bson_append_stringA(sub, cast(char[]) "_keywords", l_o);
 		else if(lang == _RU)
-			bson_append_stringA(sub, cast(char[]) "_keywords", o ~ "@ru");
+			bson_append_stringA(sub, cast(char[]) "_keywords", l_o ~ "@ru");
 		if(lang == _EN)
-			bson_append_stringA(sub, cast(char[]) "_keywords", o ~ "@en");
+			bson_append_stringA(sub, cast(char[]) "_keywords", l_o ~ "@en");
 
 		bson_append_finish_object(sub);
 
