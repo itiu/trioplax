@@ -671,6 +671,18 @@ class TripleStorageMongoDB: TripleStorage
 		return true;
 	}
 
+	bool f_trace_addTripleToReifedData = true;
+	public void addTripleToReifedData(char[] reif_subject, char[] reif_predicate, char[] reif_object, char[] p, char[] o, byte lang = _NONE)
+	{
+		//  {SUBJECT:[$reif_subject]}{$set: {'_reif_[$reif_predicate].[$reif_object].[$p]' : [$o]}});
+
+		p = "'_reif_" ~ reif_predicate ~ "." ~ reif_object ~ "." ~ p ~ "'"; 
+		
+		addTriple(reif_subject, p, o, lang);
+
+		return;
+	}
+
 	bool f_trace_addTriple = false;
 
 	public int addTriple(char[] s, char[] p, char[] o, byte lang = _NONE)
@@ -727,18 +739,21 @@ class TripleStorageMongoDB: TripleStorage
 			bson_append_finish_object(sub);
 		}
 
-		bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
+		// добавим данные для полнотекстового поиска
+		{
+			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
 
-		char[] l_o = tolower (o);
-		
-		if(lang == _NONE)
-			bson_append_stringA(sub, cast(char[]) "_keywords", l_o);
-		else if(lang == _RU)
-			bson_append_stringA(sub, cast(char[]) "_keywords", l_o ~ "@ru");
-		if(lang == _EN)
-			bson_append_stringA(sub, cast(char[]) "_keywords", l_o ~ "@en");
+			char[] l_o = tolower(o);
 
-		bson_append_finish_object(sub);
+			if(lang == _NONE)
+				bson_append_stringA(sub, cast(char[]) "_keywords", l_o);
+			else if(lang == _RU)
+				bson_append_stringA(sub, cast(char[]) "_keywords", l_o ~ "@ru");
+			if(lang == _EN)
+				bson_append_stringA(sub, cast(char[]) "_keywords", l_o ~ "@en");
+
+			bson_append_finish_object(sub);
+		}
 
 		bson_from_buffer(&op, &bb);
 
@@ -747,22 +762,21 @@ class TripleStorageMongoDB: TripleStorage
 		bson_destroy(&cond);
 		bson_destroy(&op);
 
-		//		if(cache_query_result !is null)
-		//		{
-		//			cache_query_result.addTriple(s, p, o);
-		//		}
-
-		//		log.trace("TripleStorage:add Triple..ok");
-
 		if(log_query == true)
 			logging_query("ADD", s, p, o, null);
 
 		sw.stop();
+		long t = cast(long) sw.peek().microseconds;
 
-		printf("total time add triple: %d[µs]\n", cast(long) sw.peek().microseconds);
+		if(t > 10)
+		{
+			printf("total time add triple: %d[µs]\n", cast(long) sw.peek().microseconds);
+		}
+
 		return 0;
 	}
 
+	//
 	public void print_stat()
 	{
 		log.trace("TripleStorage:stat: max used pull={}, max length list={}", max_use_pull, max_length_list);
@@ -864,9 +878,8 @@ class TripleStorageMongoDB: TripleStorage
 		char[][] values = split(fulltext_param, ",");
 		foreach(val; values)
 		{
-			bson_append_regexA(sub1, null, val, null);			
+			bson_append_regexA(sub1, null, val, null);
 		}
-		
 
 		bson_append_finish_object(sub1);
 
@@ -1016,7 +1029,7 @@ class TripleStorageMongoDB: TripleStorage
 							if(trace__getTriplesOfMask)
 								writeln("_value:", _value);
 
-							if(_name_key != "SUBJECT" && _name_key != "_id" && _name_key != "_keywords")
+							if(_name_key != "SUBJECT" && _name_key[0] != '_')
 							{
 								P = _name_key;
 								O = _value;
@@ -1035,30 +1048,34 @@ class TripleStorageMongoDB: TripleStorage
 						{
 							char[] _name_key = fromStringz(bson_iterator_key(&it));
 
-							if(trace__getTriplesOfMask)
-								writeln("_name_key:", _name_key);
-
-							char* val = bson_iterator_value(&it);
-
-							bson_iterator i_1;
-							bson_iterator_init(&i_1, val);
-
-							while(bson_iterator_next(&i_1))
+							if(_name_key != "SUBJECT" && _name_key[0] != '_')
 							{
-								switch(bson_iterator_type(&i_1))
+
+								if(trace__getTriplesOfMask)
+									writeln("_name_key:", _name_key);
+
+								char* val = bson_iterator_value(&it);
+
+								bson_iterator i_1;
+								bson_iterator_init(&i_1, val);
+
+								while(bson_iterator_next(&i_1))
 								{
-									case bson_type.bson_string:
+									switch(bson_iterator_type(&i_1))
 									{
-										char[] A_value = fromStringz(bson_iterator_string(&i_1));
+										case bson_type.bson_string:
+										{
+											char[] A_value = fromStringz(bson_iterator_string(&i_1));
 
-										add_triple_in_list(S, _name_key, A_value, list, next_element, prev_element);
+											add_triple_in_list(S, _name_key, A_value, list, next_element, prev_element);
+										}
+										default:
+										break;
 									}
-									default:
-									break;
-								}
 
+								}
+								break;
 							}
-							break;
 						}
 
 						default:

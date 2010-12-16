@@ -12,6 +12,7 @@ interface TripleStorage
 	// main functions
 	
 	public int addTriple(char[] s, char[] p, char[] o, byte lang=_NONE);
+	public void addTripleToReifedData(char[] reif_subject, char[] reif_predicate, char[] reif_object, char[] p, char[] o, byte lang = _NONE);
 	
 	public triple_list_element* getTriples(char* s, char* p, char* o);
 	public triple_list_element* getTriples(char[] s, char[] p, char[] o);
