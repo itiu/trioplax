@@ -672,12 +672,13 @@ class TripleStorageMongoDB: TripleStorage
 	}
 
 	bool f_trace_addTripleToReifedData = true;
+
 	public void addTripleToReifedData(char[] reif_subject, char[] reif_predicate, char[] reif_object, char[] p, char[] o, byte lang = _NONE)
 	{
 		//  {SUBJECT:[$reif_subject]}{$set: {'_reif_[$reif_predicate].[$reif_object].[$p]' : [$o]}});
 
-		p = "_reif_" ~ reif_predicate ~ "." ~ reif_object ~ "." ~ p ~ ""; 
-		
+		p = "_reif_" ~ reif_predicate ~ "." ~ reif_object ~ "." ~ p ~ "";
+
 		addTriple(reif_subject, p, o, lang);
 
 		return;
@@ -932,12 +933,25 @@ class TripleStorageMongoDB: TripleStorage
 
 	}
 
-	public triple_list_element* getTriplesOfMask(ref Triple[] mask_triples, bool[char[]] reading_predicates)
+	bool trace__getTriplesOfMask_1 = false;
+	bool trace__getTriplesOfMask_2 = false;
+	bool trace__getTriplesOfMask_3 = false;
+	bool trace__getTriplesOfMask_4 = false;
+	bool trace__getTriplesOfMask_5 = false;
+	bool trace__getTriplesOfMask_6 = false;
+	bool trace__getTriplesOfMask_7 = false;
+	bool trace__getTriplesOfMask_8 = false;
+	bool trace__getTriplesOfMask_9 = false;
+	bool trace__getTriplesOfMask_10 = false;
+	bool trace__getTriplesOfMask_11 = true;
+	bool trace__getTriplesOfMask_12 = false;
+
+	public triple_list_element* getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates)
 	{
 		StopWatch sw;
 		sw.start();
 
-		if(trace__getTriplesOfMask)
+		if(trace__getTriplesOfMask_1)
 			printf("getTriplesOfMask\n");
 
 		try
@@ -978,12 +992,22 @@ class TripleStorageMongoDB: TripleStorage
 			}
 
 			int count_readed_fields = 0;
-			foreach(xx; reading_predicates.keys)
+			for(int i = 0; i < reading_predicates.keys.length; i++)
 			{
-				bson_append_stringA(&bb2, cast(char[]) xx, cast(char[]) "1");
+				char[] field_name = cast(char[]) reading_predicates.keys[i];
+				byte field_type = reading_predicates.values[i];
+				bson_append_stringA(&bb2, cast(char[]) field_name, cast(char[]) "1");
 
-				if(trace__getTriplesOfMask)
-					writeln("set out field:", xx);
+				if(trace__getTriplesOfMask_2)
+					writeln("set out field:", field_name);
+
+				if(field_type == _GET_REIFED)
+				{
+					bson_append_stringA(&bb2, cast(char[]) "_reif_" ~ field_name, cast(char[]) "1");
+
+					if(trace__getTriplesOfMask_3)
+						writeln("set out field:", "_reif_" ~ field_name);
+				}
 
 				count_readed_fields++;
 			}
@@ -991,7 +1015,7 @@ class TripleStorageMongoDB: TripleStorage
 			bson_from_buffer(&fields, &bb2);
 			bson_from_buffer(&query, &bb);
 
-			if(trace__getTriplesOfMask)
+			if(trace__getTriplesOfMask_4)
 			{
 				printf("QUERY:\n");
 				bson_print(&query);
@@ -1005,7 +1029,7 @@ class TripleStorageMongoDB: TripleStorage
 
 			while(mongo_cursor_next(cursor))
 			{
-				if(trace__getTriplesOfMask)
+				if(trace__getTriplesOfMask_5)
 					log.trace("next of cursor");
 
 				bson_iterator it;
@@ -1015,30 +1039,39 @@ class TripleStorageMongoDB: TripleStorage
 				while(bson_iterator_next(&it))
 				{
 					//					writeln ("it++");
+					bson_type type = bson_iterator_type(&it);
+					if(trace__getTriplesOfMask_6)
+						printf("TYPE_OF_KEY %d\n", type);
 
-					switch(bson_iterator_type(&it))
+					switch(type)
 					{
 						case bson_type.bson_string:
 						{
 							char[] _name_key = fromStringz(bson_iterator_key(&it));
 
-							if(trace__getTriplesOfMask)
+							if(trace__getTriplesOfMask_7)
 								writeln("_name_key:", _name_key);
 
 							char[] _value = fromStringz(bson_iterator_string(&it));
-							if(trace__getTriplesOfMask)
+
+							if(trace__getTriplesOfMask_8)
 								writeln("_value:", _value);
 
-							if(_name_key != "SUBJECT" && _name_key[0] != '_')
+							if(_name_key == "SUBJECT")
+							{
+								S = _value;
+							}
+							else if(_name_key[0] != '_')
 							{
 								P = _name_key;
 								O = _value;
 
 								add_triple_in_list(S, P, O, list, next_element, prev_element);
 							}
-							else
+							else if(_name_key[1] != 'r' && _name_key[2] != 'e' && _name_key[3] != 'i')
 							{
-								S = _value;
+								if(trace__getTriplesOfMask_9)
+									writeln("REIF _name_key:", _name_key);
 							}
 
 							break;
@@ -1051,7 +1084,7 @@ class TripleStorageMongoDB: TripleStorage
 							if(_name_key != "SUBJECT" && _name_key[0] != '_')
 							{
 
-								if(trace__getTriplesOfMask)
+								if(trace__getTriplesOfMask_10)
 									writeln("_name_key:", _name_key);
 
 								char* val = bson_iterator_value(&it);
@@ -1074,11 +1107,83 @@ class TripleStorageMongoDB: TripleStorage
 									}
 
 								}
-								break;
 							}
+							break;
+						}
+
+						case bson_type.bson_object:
+						{
+							char[] _name_key = fromStringz(bson_iterator_key(&it));
+
+							if(_name_key[0] == '_' && _name_key[1] == 'r' && _name_key[2] == 'e' && _name_key[3] == 'i')
+							{
+
+								if(trace__getTriplesOfMask_11)
+									writeln("REIFFF _name_key:", _name_key);
+
+								char* val = bson_iterator_value(&it);
+								bson_iterator i_1;
+								bson_iterator_init(&i_1, val);
+
+								while(bson_iterator_next(&i_1))
+								{
+									char[] _name_key_L1 = fromStringz(bson_iterator_key(&i_1));
+
+									switch(bson_iterator_type(&i_1))
+									{
+										case bson_type.bson_object:
+										{
+											char* val_L2 = bson_iterator_value(&i_1);
+
+											bson_iterator i_L2;
+											bson_iterator_init(&i_L2, val_L2);
+
+											while(bson_iterator_next(&i_L2))
+											{
+												printf("QQQ L2 %d\n", bson_iterator_type(&i_L2));
+												char[] _name_key_L2 = fromStringz(bson_iterator_key(&i_L2));
+												writeln("QQQ L2 KEY ", _name_key_L2);
+
+												switch(bson_iterator_type(&i_L2))
+												{
+													case bson_type.bson_string:
+													{
+														char[] _name_val_L2 = fromStringz(bson_iterator_string(&i_L2));
+														writeln("QQQ L2 VAL ", _name_val_L2);
+
+														break;
+													}
+
+													default:
+														writeln("REIFFF #3");
+
+													break;
+												}
+											}
+
+											writeln("REIFFF #4");
+											break;
+										}
+
+										default:
+											writeln("REIFFF #5");
+
+										break;
+									}
+
+								}
+							}
+
+							break;
 						}
 
 						default:
+							{
+								char[] _name_key = fromStringz(bson_iterator_key(&it));
+
+								if(trace__getTriplesOfMask_12)
+									writeln("_name_key:", _name_key);
+							}
 						break;
 
 					}

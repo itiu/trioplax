@@ -7,6 +7,9 @@ public immutable byte _NONE = 0;
 public immutable byte _RU = 1;
 public immutable byte _EN = 2;
 
+public immutable byte _GET = 0;
+public immutable byte _GET_REIFED = 1;
+
 interface TripleStorage
 {
 	// main functions
@@ -17,7 +20,7 @@ interface TripleStorage
 	public triple_list_element* getTriples(char* s, char* p, char* o);
 	public triple_list_element* getTriples(char[] s, char[] p, char[] o);
 	public triple_list_element* getTriplesUseIndexS1PPOO(char[] s, char[] p, char[] o);
-	public triple_list_element* getTriplesOfMask(ref Triple[] triples, bool[char[]] read_predicates);
+	public triple_list_element* getTriplesOfMask(ref Triple[] triples, byte[char[]] read_predicates);
 	
 	public bool isExistSubject (char[] subject); 
 	
