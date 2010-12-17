@@ -937,10 +937,10 @@ class TripleStorageMongoDB: TripleStorage
 	bool trace__getTriplesOfMask_2 = false;
 	bool trace__getTriplesOfMask_3 = false;
 	bool trace__getTriplesOfMask_4 = false;
-	bool trace__getTriplesOfMask_5 = false;
+	bool trace__getTriplesOfMask_5 = true;
 	bool trace__getTriplesOfMask_6 = false;
-	bool trace__getTriplesOfMask_7 = false;
-	bool trace__getTriplesOfMask_8 = false;
+	bool trace__getTriplesOfMask_7 = true;
+	bool trace__getTriplesOfMask_8 = true;
 	bool trace__getTriplesOfMask_9 = false;
 	bool trace__getTriplesOfMask_10 = false;
 	bool trace__getTriplesOfMask_11 = true;
@@ -999,14 +999,14 @@ class TripleStorageMongoDB: TripleStorage
 				bson_append_stringA(&bb2, cast(char[]) field_name, cast(char[]) "1");
 
 				if(trace__getTriplesOfMask_2)
-					writeln("set out field:", field_name);
+					writeln("getTriplesOfMask:set out field:", field_name);
 
 				if(field_type == _GET_REIFED)
 				{
 					bson_append_stringA(&bb2, cast(char[]) "_reif_" ~ field_name, cast(char[]) "1");
 
 					if(trace__getTriplesOfMask_3)
-						writeln("set out field:", "_reif_" ~ field_name);
+						writeln("getTriplesOfMask:set out field:", "_reif_" ~ field_name);
 				}
 
 				count_readed_fields++;
@@ -1017,7 +1017,7 @@ class TripleStorageMongoDB: TripleStorage
 
 			if(trace__getTriplesOfMask_4)
 			{
-				printf("QUERY:\n");
+				printf("getTriplesOfMask:QUERY:\n");
 				bson_print(&query);
 			}
 
@@ -1027,10 +1027,12 @@ class TripleStorageMongoDB: TripleStorage
 			char[] P;
 			char[] O;
 
+			Triple*[char[]] reif_triples;
+
 			while(mongo_cursor_next(cursor))
 			{
 				if(trace__getTriplesOfMask_5)
-					log.trace("next of cursor");
+					writeln("getTriplesOfMask:next of cursor");
 
 				bson_iterator it;
 				bson_iterator_init(&it, cursor.current.data);
@@ -1041,7 +1043,7 @@ class TripleStorageMongoDB: TripleStorage
 					//					writeln ("it++");
 					bson_type type = bson_iterator_type(&it);
 					if(trace__getTriplesOfMask_6)
-						printf("TYPE_OF_KEY %d\n", type);
+						printf("getTriplesOfMask:TYPE_OF_KEY %d\n", type);
 
 					switch(type)
 					{
@@ -1050,12 +1052,12 @@ class TripleStorageMongoDB: TripleStorage
 							char[] _name_key = fromStringz(bson_iterator_key(&it));
 
 							if(trace__getTriplesOfMask_7)
-								writeln("_name_key:", _name_key);
+								writeln("getTriplesOfMask:_name_key:", _name_key);
 
 							char[] _value = fromStringz(bson_iterator_string(&it));
 
 							if(trace__getTriplesOfMask_8)
-								writeln("_value:", _value);
+								writeln("getTriplesOfMask:_value:", _value);
 
 							if(_name_key == "SUBJECT")
 							{
@@ -1066,12 +1068,21 @@ class TripleStorageMongoDB: TripleStorage
 								P = _name_key;
 								O = _value;
 
+								// проверим есть ли для этого триплета реифицированные данные
+
+								Triple** reif_triple = (O in reif_triples);
+								if(reif_triple !is null)
+								{
+									// можно добавлять в список
+									writeln ("getTriplesOfMask:можно добавлять в список :", (*reif_triple).o);
+								}
+								
 								add_triple_in_list(S, P, O, list, next_element, prev_element);
 							}
 							else if(_name_key[1] != 'r' && _name_key[2] != 'e' && _name_key[3] != 'i')
 							{
 								if(trace__getTriplesOfMask_9)
-									writeln("REIF _name_key:", _name_key);
+									writeln("getTriplesOfMask:REIF _name_key:", _name_key);
 							}
 
 							break;
@@ -1083,9 +1094,8 @@ class TripleStorageMongoDB: TripleStorage
 
 							if(_name_key != "SUBJECT" && _name_key[0] != '_')
 							{
-
 								if(trace__getTriplesOfMask_10)
-									writeln("_name_key:", _name_key);
+									writeln("getTriplesOfMask:_name_key:", _name_key);
 
 								char* val = bson_iterator_value(&it);
 
@@ -1117,57 +1127,74 @@ class TripleStorageMongoDB: TripleStorage
 
 							if(_name_key[0] == '_' && _name_key[1] == 'r' && _name_key[2] == 'e' && _name_key[3] == 'i')
 							{
+								// это реифицированные данные, восстановим факты его образующие
+								// добавим в список:
+								//	_new_node_uid a fdr:Statement
+								//	_new_node_uid rdf:subject [$S]
+								//	_new_node_uid rdf:predicate [$_name_key[6..]]
+								//	_new_node_uid rdf:object [?]
+								Triple* r_triple = createTriple();
 
 								if(trace__getTriplesOfMask_11)
-									writeln("REIFFF _name_key:", _name_key);
+									writeln("getTriplesOfMask:REIFFF _name_key:", _name_key);
 
 								char* val = bson_iterator_value(&it);
-								bson_iterator i_1;
-								bson_iterator_init(&i_1, val);
+								bson_iterator i_L1;
+								bson_iterator_init(&i_L1, val);
 
-								while(bson_iterator_next(&i_1))
+								while(bson_iterator_next(&i_L1))
 								{
-									char[] _name_key_L1 = fromStringz(bson_iterator_key(&i_1));
+									char[] _name_key_L1 = fromStringz(bson_iterator_key(&i_L1));
 
-									switch(bson_iterator_type(&i_1))
+									switch(bson_iterator_type(&i_L1))
 									{
+
 										case bson_type.bson_object:
 										{
-											char* val_L2 = bson_iterator_value(&i_1);
+											char* val_L2 = bson_iterator_value(&i_L1);
 
 											bson_iterator i_L2;
 											bson_iterator_init(&i_L2, val_L2);
 
 											while(bson_iterator_next(&i_L2))
 											{
-												printf("QQQ L2 %d\n", bson_iterator_type(&i_L2));
-												char[] _name_key_L2 = fromStringz(bson_iterator_key(&i_L2));
-												writeln("QQQ L2 KEY ", _name_key_L2);
-
 												switch(bson_iterator_type(&i_L2))
 												{
 													case bson_type.bson_string:
 													{
+														printf("getTriplesOfMask:QQQ L2 %d\n", bson_iterator_type(&i_L2));
+														char[] _name_key_L2 = fromStringz(bson_iterator_key(&i_L2));
+														writeln("getTriplesOfMask:QQQ L2 KEY ", _name_key_L2);
+														r_triple.p = _name_key_L2;
+
 														char[] _name_val_L2 = fromStringz(bson_iterator_string(&i_L2));
-														writeln("QQQ L2 VAL ", _name_val_L2);
+														writeln("getTriplesOfMask:QQQ L2 VAL ", _name_val_L2);
+														r_triple.o = _name_val_L2;
 
 														break;
 													}
 
 													default:
-														writeln("REIFFF #3");
+														writeln("getTriplesOfMask:REIFFF #3");
 
 													break;
 												}
 											}
 
-											writeln("REIFFF #4");
+											break;
+										}
+
+										case bson_type.bson_eoo:
+										{
+											char[] _name_val_L1 = fromStringz(bson_iterator_string(&i_L1));
+											writeln("getTriplesOfMask: ", bson_iterator_type(&i_L1), " QQQ L1 VAL ", _name_val_L1);
+
+											reif_triples[_name_val_L1] = r_triple;
+
 											break;
 										}
 
 										default:
-											writeln("REIFFF #5");
-
 										break;
 									}
 
@@ -1182,7 +1209,7 @@ class TripleStorageMongoDB: TripleStorage
 								char[] _name_key = fromStringz(bson_iterator_key(&it));
 
 								if(trace__getTriplesOfMask_12)
-									writeln("_name_key:", _name_key);
+									writeln("getTriplesOfMask:_name_key:", _name_key);
 							}
 						break;
 
@@ -1213,6 +1240,17 @@ class TripleStorageMongoDB: TripleStorage
 
 	}
 
+	private Triple* createTriple()
+	{
+		Triple* triple = triples + last_used_element_in_pull;
+
+		last_used_element_in_pull++;
+		if(last_used_element_in_pull > elements_in_list_max_length)
+			throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
+
+		return triple;
+	}
+
 	private void add_triple_in_list(char[] S, char[] P, char[] O, ref triple_list_element* list, ref triple_list_element* next_element,
 			ref triple_list_element* prev_element)
 	{
@@ -1221,11 +1259,7 @@ class TripleStorageMongoDB: TripleStorage
 		next_element = elements_in_list + last_used_element_in_pull;
 		next_element.next_triple_list_element = null;
 
-		Triple* triple = triples + last_used_element_in_pull;
-
-		last_used_element_in_pull++;
-		if(last_used_element_in_pull > elements_in_list_max_length)
-			throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
+		Triple* triple = createTriple();
 
 		if(prev_element !is null)
 		{
