@@ -676,7 +676,7 @@ class TripleStorageMongoDB: TripleStorage
 	{
 		//  {SUBJECT:[$reif_subject]}{$set: {'_reif_[$reif_predicate].[$reif_object].[$p]' : [$o]}});
 
-		p = "'_reif_" ~ reif_predicate ~ "." ~ reif_object ~ "." ~ p ~ "'"; 
+		p = "_reif_" ~ reif_predicate ~ "." ~ reif_object ~ "." ~ p ~ ""; 
 		
 		addTriple(reif_subject, p, o, lang);
 
