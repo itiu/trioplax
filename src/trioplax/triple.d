@@ -1,5 +1,5 @@
 module trioplax.triple;
-struct Triple
+class Triple
 {
     char[] s;
     char[] p;
@@ -8,8 +8,8 @@ struct Triple
     byte lang;
 }
 
-struct triple_list_element
+class triple_list_element
 {
-    Triple* triple;
-    triple_list_element* next_triple_list_element;
+    Triple triple;
+    triple_list_element next_triple_list_element;
 }

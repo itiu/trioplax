@@ -17,10 +17,10 @@ interface TripleStorage
 	public int addTriple(char[] s, char[] p, char[] o, byte lang=_NONE);
 	public void addTripleToReifedData(char[] reif_subject, char[] reif_predicate, char[] reif_object, char[] p, char[] o, byte lang = _NONE);
 	
-	public triple_list_element* getTriples(char* s, char* p, char* o);
-	public triple_list_element* getTriples(char[] s, char[] p, char[] o);
-	public triple_list_element* getTriplesUseIndexS1PPOO(char[] s, char[] p, char[] o);
-	public triple_list_element* getTriplesOfMask(ref Triple[] triples, byte[char[]] read_predicates);
+//	public triple_list_element getTriples(char* s, char* p, char* o);
+	public triple_list_element getTriples(char[] s, char[] p, char[] o);
+	public triple_list_element getTriplesUseIndexS1PPOO(char[] s, char[] p, char[] o);
+	public triple_list_element getTriplesOfMask(ref Triple[] triples, byte[char[]] read_predicates);
 	
 	public bool isExistSubject (char[] subject); 
 	
@@ -37,16 +37,16 @@ interface TripleStorage
 	/////////////////////////////////////////	
 	
 	public void release_all_lists();
-	public void list_no_longer_required(triple_list_element* first_element_of_list);
+//	public void list_no_longer_required(triple_list_element first_element_of_list);
 
 	////////////////////////////////////////
 		
 	public void print_stat();
 //	public void print_list_triple_to_file(File log_file, triple_list_element* list_iterator);
-	public void print_list_triple(triple_list_element* list_iterator);
+	public void print_list_triple(triple_list_element list_iterator);
 
-	public int get_count_form_list_triple(triple_list_element* list_iterator);
+	public int get_count_form_list_triple(triple_list_element list_iterator);
 	
 	////////////////////////////////////////	
-	private void logging_query(char[] op, char* s, char* p, char* o, triple_list_element* list);	
+	private void logging_query(char[] op, char* s, char* p, char* o, triple_list_element list);	
 }
