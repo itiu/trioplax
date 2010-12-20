@@ -35,11 +35,13 @@ class TripleStorageMongoDB: TripleStorage
 	private int max_length_pull = 1024 * 10;
 	private int average_list_size = 3;
 
+	private int max_used_of_triples_pull = 0;
 	private Triple* triples = null;
+	private int last_used_of_triples_pull = 0;
 
-	private int elements_in_list_max_length = 0;
+	private int max_used_of_list_pull = 0;
 	private triple_list_element* elements_in_list = null;
-	private int last_used_element_in_pull = 0;
+	private int last_used_of_list_pull = 0;
 
 	private triple_list_element*[] used_list = null;
 
@@ -82,13 +84,16 @@ class TripleStorageMongoDB: TripleStorage
 
 		col = cast(char*) collection;
 		ns = cast(char*) (collection ~ ".simple");
-		triples = cast(Triple*) calloc(Triple.sizeof, max_length_pull * average_list_size);
 
-		elements_in_list_max_length = max_length_pull * average_list_size;
-		elements_in_list = cast(triple_list_element*) calloc(triple_list_element.sizeof, elements_in_list_max_length);
+		max_used_of_triples_pull = max_length_pull;
+		triples = cast(Triple*) calloc(Triple.sizeof, last_used_of_triples_pull);
+		last_used_of_triples_pull = 0;
 
-		used_list = new triple_list_element*[max_length_pull];
-		last_used_element_in_pull = 0;
+		max_used_of_list_pull = max_length_pull * average_list_size;
+		elements_in_list = cast(triple_list_element*) calloc(triple_list_element.sizeof, max_used_of_list_pull);
+		last_used_of_list_pull = 0;
+
+		//		used_list = new triple_list_element*[max_length_pull];
 
 		//		layout = new Locale;
 		buff = new char[32];
@@ -118,7 +123,8 @@ class TripleStorageMongoDB: TripleStorage
 
 	public void release_all_lists()
 	{
-		last_used_element_in_pull = 0;
+		last_used_of_list_pull = 0;
+		last_used_of_triples_pull = 0;
 	}
 
 	public void define_predicate_as_multiple(char[] predicate)
@@ -230,14 +236,18 @@ class TripleStorageMongoDB: TripleStorage
 
 			//			next_element = cast(triple_list_element*) calloc(triple_list_element.sizeof, 1);
 
-			next_element = elements_in_list + last_used_element_in_pull;
+			next_element = elements_in_list + last_used_of_list_pull;
 			next_element.next_triple_list_element = null;
 
-			Triple* triple = triples + last_used_element_in_pull;
+			last_used_of_list_pull++;
+			if(last_used_of_list_pull > max_used_of_list_pull)
+				throw new Exception("list elements pull is overflow");
 
-			last_used_element_in_pull++;
-			if(last_used_element_in_pull > elements_in_list_max_length)
-				throw new Exception("pull is overflow");
+			Triple* triple = triples + last_used_of_triples_pull;
+
+			last_used_of_triples_pull++;
+			if(last_used_of_triples_pull > max_used_of_triples_pull)
+				throw new Exception("triples pull is overflow");
 
 			length_list++;
 
@@ -430,14 +440,18 @@ class TripleStorageMongoDB: TripleStorage
 								//								writeln("if(ts !is null && tp !is null && to !is null)");
 
 								//	next_element = cast(triple_list_element*) calloc(triple_list_element.sizeof, 1);
-								next_element = elements_in_list + last_used_element_in_pull;
+								next_element = elements_in_list + last_used_of_list_pull;
 								next_element.next_triple_list_element = null;
 
-								Triple* triple = triples + last_used_element_in_pull;
+								last_used_of_list_pull++;
+								if(last_used_of_list_pull > max_used_of_list_pull)
+									throw new Exception("list elements pull is overflow");
 
-								last_used_element_in_pull++;
-								if(last_used_element_in_pull > elements_in_list_max_length)
-									throw new Exception("pull is overflow");
+								Triple* triple = triples + last_used_of_triples_pull;
+
+								last_used_of_triples_pull++;
+								if(last_used_of_triples_pull > max_used_of_triples_pull)
+									throw new Exception("triples pull is overflow");
 
 								if(prev_element !is null)
 								{
@@ -473,14 +487,18 @@ class TripleStorageMongoDB: TripleStorage
 					//					log.trace("GET TRIPLES #9");
 
 					//					next_element = cast(triple_list_element*) calloc(triple_list_element.sizeof, 1);
-					next_element = elements_in_list + last_used_element_in_pull;
+					next_element = elements_in_list + last_used_of_list_pull;
 					next_element.next_triple_list_element = null;
 
-					Triple* triple = triples + last_used_element_in_pull;
+					last_used_of_list_pull++;
+					if(last_used_of_list_pull > max_used_of_list_pull)
+						throw new Exception("list elements pull is overflow");
 
-					last_used_element_in_pull++;
-					if(last_used_element_in_pull > elements_in_list_max_length)
-						throw new Exception("pull is overflow");
+					Triple* triple = triples + last_used_of_triples_pull;
+
+					last_used_of_triples_pull++;
+					if(last_used_of_triples_pull > max_used_of_triples_pull)
+						throw new Exception("triples pull is overflow");
 
 					length_list++;
 
@@ -814,6 +832,8 @@ class TripleStorageMongoDB: TripleStorage
 	 */
 	public void print_list_triple(triple_list_element* list_iterator)
 	{
+		writeln("=== begin list");
+
 		Triple* triple;
 		if(list_iterator !is null)
 		{
@@ -828,6 +848,7 @@ class TripleStorageMongoDB: TripleStorage
 				list_iterator = list_iterator.next_triple_list_element;
 			}
 		}
+		writeln("=== end list");
 	}
 
 	public int get_count_form_list_triple(triple_list_element* list_iterator)
@@ -856,7 +877,7 @@ class TripleStorageMongoDB: TripleStorage
 		if(triple is null)
 			return;
 
-		log.trace("triple: <{}><{}>\"{}\"", triple.s, triple.p, triple.o);
+		writeln("triple: ", triple.s, " ", triple.p, " ", triple.o);
 	}
 
 	public string triple_to_string(Triple* triple)
@@ -945,6 +966,7 @@ class TripleStorageMongoDB: TripleStorage
 	bool trace__getTriplesOfMask_10 = false;
 	bool trace__getTriplesOfMask_11 = true;
 	bool trace__getTriplesOfMask_12 = false;
+	bool trace__getTriplesOfMask_13 = false;
 
 	public triple_list_element* getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates)
 	{
@@ -1027,7 +1049,7 @@ class TripleStorageMongoDB: TripleStorage
 			char[] P;
 			char[] O;
 
-			Triple*[char[]] reif_triples;
+			Triple*[][char[]] reif_triples;
 
 			while(mongo_cursor_next(cursor))
 			{
@@ -1070,13 +1092,19 @@ class TripleStorageMongoDB: TripleStorage
 
 								// проверим есть ли для этого триплета реифицированные данные
 
-								Triple** reif_triple = (O in reif_triples);
-								if(reif_triple !is null)
+								Triple*[]* vv = O in reif_triples;
+								if(vv !is null)
 								{
-									// можно добавлять в список
-									writeln ("getTriplesOfMask:можно добавлять в список :", (*reif_triple).o);
+									Triple*[] r1_reif_triples = *vv;
+
+									foreach (tt; r1_reif_triples)
+									{
+										// можно добавлять в список
+										writeln("getTriplesOfMask:можно добавлять в список :", tt.o);
+										add_triple_in_list(tt, list, next_element, prev_element);
+									}
 								}
-								
+
 								add_triple_in_list(S, P, O, list, next_element, prev_element);
 							}
 							else if(_name_key[1] != 'r' && _name_key[2] != 'e' && _name_key[3] != 'i')
@@ -1133,7 +1161,9 @@ class TripleStorageMongoDB: TripleStorage
 								//	_new_node_uid rdf:subject [$S]
 								//	_new_node_uid rdf:predicate [$_name_key[6..]]
 								//	_new_node_uid rdf:object [?]
-								Triple* r_triple = createTriple();
+
+								Triple*[] r_triples = new Triple*[10];
+								int last_r_triples = 0;
 
 								if(trace__getTriplesOfMask_11)
 									writeln("getTriplesOfMask:REIFFF _name_key:", _name_key);
@@ -1162,6 +1192,12 @@ class TripleStorageMongoDB: TripleStorage
 												{
 													case bson_type.bson_string:
 													{
+														Triple* r_triple = createTriple();
+														r_triples[last_r_triples] = r_triple;
+														last_r_triples++;
+														if(last_r_triples > r_triples.length)
+															r_triples.length += 50;
+
 														printf("getTriplesOfMask:QQQ L2 %d\n", bson_iterator_type(&i_L2));
 														char[] _name_key_L2 = fromStringz(bson_iterator_key(&i_L2));
 														writeln("getTriplesOfMask:QQQ L2 KEY ", _name_key_L2);
@@ -1170,6 +1206,8 @@ class TripleStorageMongoDB: TripleStorage
 														char[] _name_val_L2 = fromStringz(bson_iterator_string(&i_L2));
 														writeln("getTriplesOfMask:QQQ L2 VAL ", _name_val_L2);
 														r_triple.o = _name_val_L2;
+
+														r_triple.s = S ~ "_reif";
 
 														break;
 													}
@@ -1189,7 +1227,8 @@ class TripleStorageMongoDB: TripleStorage
 											char[] _name_val_L1 = fromStringz(bson_iterator_string(&i_L1));
 											writeln("getTriplesOfMask: ", bson_iterator_type(&i_L1), " QQQ L1 VAL ", _name_val_L1);
 
-											reif_triples[_name_val_L1] = r_triple;
+											r_triples.length = last_r_triples;
+											reif_triples[_name_val_L1] = r_triples;
 
 											break;
 										}
@@ -1229,6 +1268,10 @@ class TripleStorageMongoDB: TripleStorage
 			{
 				printf("total time getTripleOfMask: %d[µs]\n", t);
 			}
+
+			if(trace__getTriplesOfMask_13)
+				print_list_triple(list);
+
 			return list;
 		}
 		catch(Exception ex)
@@ -1242,11 +1285,11 @@ class TripleStorageMongoDB: TripleStorage
 
 	private Triple* createTriple()
 	{
-		Triple* triple = triples + last_used_element_in_pull;
+		Triple* triple = triples + last_used_of_triples_pull;
 
-		last_used_element_in_pull++;
-		if(last_used_element_in_pull > elements_in_list_max_length)
-			throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
+		last_used_of_triples_pull++;
+		if(last_used_of_triples_pull > max_used_of_triples_pull)
+			throw new Exception("triple pull is overflow, last_used_of_triples_pull > max_used_of_triples_pull");
 
 		return triple;
 	}
@@ -1256,8 +1299,12 @@ class TripleStorageMongoDB: TripleStorage
 	{
 
 		// добавим триплет в возвращаемый список
-		next_element = elements_in_list + last_used_element_in_pull;
+		next_element = elements_in_list + last_used_of_list_pull;
 		next_element.next_triple_list_element = null;
+
+		last_used_of_list_pull++;
+		if(last_used_of_list_pull > max_used_of_list_pull)
+			throw new Exception("list pull is overflow, last_used_of_triples_pull > max_used_of_triples_pull");
 
 		Triple* triple = createTriple();
 
@@ -1293,6 +1340,34 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(trace__getTriplesOfMask)
 			writeln("add triple to the list, S:", triple.s, " P:", triple.p, " O:", triple.o, " lang:", triple.lang);
+
+		next_element.triple = triple;
+	}
+
+	private void add_triple_in_list(Triple* triple, ref triple_list_element* list, ref triple_list_element* next_element,
+			ref triple_list_element* prev_element)
+	{
+		// добавим триплет в возвращаемый список
+		next_element = elements_in_list + last_used_of_list_pull;
+		next_element.next_triple_list_element = null;
+
+		last_used_of_list_pull++;
+		if(last_used_of_list_pull > max_used_of_list_pull)
+			throw new Exception("list pull is overflow, last_used_of_triples_pull > max_used_of_triples_pull");
+
+		if(prev_element !is null)
+		{
+			prev_element.next_triple_list_element = next_element;
+		}
+
+		prev_element = next_element;
+		if(list is null)
+		{
+			list = next_element;
+		}
+
+		if(trace__getTriplesOfMask)
+			writeln("add Triple* to the list, S:", triple.s, " P:", triple.p, " O:", triple.o, " lang:", triple.lang);
 
 		next_element.triple = triple;
 	}
