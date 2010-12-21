@@ -129,7 +129,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public void define_predicate_as_multiple(char[] predicate)
 	{
-		predicate_as_multiple[predicate] = true;
+		predicate_as_multiple[cast(immutable)predicate] = true;
 
 		log.trace("define predicate [{}] as multiple", predicate);
 	}
@@ -1176,7 +1176,7 @@ class TripleStorageMongoDB: TripleStorage
 												writeln("getTriplesOfMask: ", bson_iterator_type(&i_L1), " QQQ L1 VAL ", _name_val_L1);
 
 											r_triples.length = last_r_triples;
-											reif_triples[_name_val_L1] = r_triples;
+											reif_triples[cast(immutable)_name_val_L1] = r_triples;
 
 											break;
 										}
