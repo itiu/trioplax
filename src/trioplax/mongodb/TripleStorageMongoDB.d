@@ -17,6 +17,8 @@ version(D2)
 
 private import std.c.stdlib: calloc, free;
 
+private import Integer = tango.text.convert.Integer;
+
 private import trioplax.triple;
 private import trioplax.TripleStorage;
 private import trioplax.Log;
@@ -326,7 +328,7 @@ class TripleStorageMongoDB: TripleStorage
 		sw.stop();
 		long t = cast(long) sw.peek().microseconds;
 
-		if(t > 100)
+		if(t > 500)
 		{
 			writeln("Subject:", subject);
 			printf("total time isExistSubject: %d[µs]\n", t);
@@ -469,7 +471,7 @@ class TripleStorageMongoDB: TripleStorage
 		sw.stop();
 		long t = cast(long) sw.peek().microseconds;
 
-		if(t > 100)
+		if(t > 500)
 		{
 			writeln("query-> S:", s, " P:", p, " O:", o);
 			printf("total time getTriple: %d[µs]\n", t);
@@ -712,7 +714,7 @@ class TripleStorageMongoDB: TripleStorage
 		sw.stop();
 		long t = cast(long) sw.peek().microseconds;
 
-		if(t > 10)
+		if(t > 100)
 		{
 			printf("total time add triple: %d[µs]\n", cast(long) sw.peek().microseconds);
 		}
@@ -1027,12 +1029,17 @@ class TripleStorageMongoDB: TripleStorage
 								if(vv !is null)
 								{
 									Triple[] r1_reif_triples = *vv;
+																		
+									add_triple_in_list(r1_reif_triples[0].s, cast(char[])"rdf:Subject", S, last_element, list);
+									add_triple_in_list(r1_reif_triples[0].s, cast(char[])"rdf:Predicate", P, last_element, list);
+									add_triple_in_list(r1_reif_triples[0].s, cast(char[])"rdf:Object", O, last_element, list);
 
 									foreach(tt; r1_reif_triples)
 									{
 										// можно добавлять в список
 										if(trace__getTriplesOfMask)
 											writeln("getTriplesOfMask:можно добавлять в список :", tt.o);
+										
 										add_triple_in_list(tt, last_element, list);
 									}
 								}
@@ -1088,6 +1095,18 @@ class TripleStorageMongoDB: TripleStorage
 							if(_name_key[0] == '_' && _name_key[1] == 'r' && _name_key[2] == 'e' && _name_key[3] == 'i')
 							{
 								count_of_reifed_data++;
+								
+								char[] reifed_data_subj = new char[6];
+								reifed_data_subj[0] = '_';
+								reifed_data_subj[1] = ':';
+								reifed_data_subj[2] = 'R';
+								reifed_data_subj[3] = '_';
+								reifed_data_subj[4] = '_';
+								reifed_data_subj[5] = '_';
+								
+								Integer.format(reifed_data_subj, count_of_reifed_data, cast(char[]) "X2");
+								
+								
 								// это реифицированные данные, восстановим факты его образующие
 								// добавим в список:
 								//	_new_node_uid a fdr:Statement
@@ -1148,11 +1167,7 @@ class TripleStorageMongoDB: TripleStorage
 
 														r_triple.o = _name_val_L2;
 
-														r_triple.s = new char[4];
-														r_triple.s[0] = '_';
-														r_triple.s[1] = ':';
-														r_triple.s[2] = 'p';
-														r_triple.s[3] = cast(char)(count_of_reifed_data + 48);
+														r_triple.s = reifed_data_subj;
 
 														break;
 													}
