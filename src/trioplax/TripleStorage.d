@@ -1,6 +1,7 @@
 module trioplax.TripleStorage;
 
 private import trioplax.triple;
+
 //private import tango.io.device.File;
 
 public immutable byte _NONE = 0;

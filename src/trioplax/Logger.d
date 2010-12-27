@@ -17,7 +17,8 @@ public class Logger
 {
 	private string trace_logfilename = "app.log";
 	private FILE* ff;
-
+	private string src = "";
+	
 	//	static this()
 	//	{
 	//		log = new Logger();
@@ -28,10 +29,11 @@ public class Logger
 	//		delete log;
 	//	}
 
-	this(string log_name)
+	this(string log_name, string _src)
 	{
 		trace_logfilename = log_name;
 		ff = fopen(trace_logfilename.ptr, "aw");
+		src = _src;
 	}
 
 	~this()
@@ -72,8 +74,8 @@ public class Logger
 		d_time now = getUTCtime();
 
 		auto writer = appender!string();
-		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] ", yearFromTime(now), monthFromTime(now), dateFromTime(now),
-				hourFromTime(now), minFromTime(now), secFromTime(now), msFromTime(now));		
+		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ", yearFromTime(now), monthFromTime(now), dateFromTime(now),
+				hourFromTime(now), minFromTime(now), secFromTime(now), msFromTime(now), src);		
 		
 		formattedWrite(writer, fmt, args);
 		writer.put(cast(char)0);
