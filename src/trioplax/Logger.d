@@ -60,9 +60,10 @@ public class Logger
 
 		fputs(cast(char*) writer.data, ff);
 
-		for(int i = 0; i < len; i++)
+		for(int i = 0; i < len - 1; i++)
 		{
-			fputc(*data, ff);
+			if (*data != 0)
+				fputc(*data, ff);
 			data++;
 		}
 
