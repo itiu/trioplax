@@ -609,7 +609,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public int addTriple(char[] s, char[] p, char[] o, byte lang = _NONE)
 	{
-//				trace_msg[4] = 1;
+		//				trace_msg[4] = 1;
 
 		StopWatch sw;
 		sw.start();
@@ -819,7 +819,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public triple_list_element getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates)
 	{
-//		trace_msg[0] = 1;
+		//		trace_msg[0] = 1;
 		//trace_msg[0][5] = 1;
 		//		trace_msg[1][1] = 0;
 		//		trace_msg[2][0] = 0;
@@ -943,7 +943,9 @@ class TripleStorageMongoDB: TripleStorage
 						{
 							char[] _name_key = fromStringz(bson_iterator_key(&it));
 
-							if((_name_key in reading_predicates) is null)
+							byte* type_of_getting_field = (_name_key in reading_predicates);
+
+							if(type_of_getting_field is null)
 								break;
 
 							if(trace_msg[0][8] == 1)
@@ -964,33 +966,34 @@ class TripleStorageMongoDB: TripleStorage
 								O = _value;
 
 								// проверим есть ли для этого триплета реифицированные данные
-
-								Triple[]* vv = O in reif_triples;
-								if(vv !is null)
+								if(*type_of_getting_field == _GET_REIFED)
 								{
-									Triple[] r1_reif_triples = *vv;
-
-									add_triple_in_list(r1_reif_triples[0].s, cast(char[]) "rdf:Subject", S, last_element, list);
-									add_triple_in_list(r1_reif_triples[0].s, cast(char[]) "rdf:Predicate", P, last_element, list);
-									add_triple_in_list(r1_reif_triples[0].s, cast(char[]) "rdf:Object", O, last_element, list);
-
-									foreach(tt; r1_reif_triples)
+									Triple[]* vv = O in reif_triples;
+									if(vv !is null)
 									{
-										// можно добавлять в список
-										if(trace_msg[0][10] == 1)
-											log.trace("getTriplesOfMask:можно добавлять в список :", tt.o);
+										Triple[] r1_reif_triples = *vv;
 
-										add_triple_in_list(tt, last_element, list);
+										add_triple_in_list(r1_reif_triples[0].s, cast(char[]) "rdf:Subject", S, last_element, list);
+										add_triple_in_list(r1_reif_triples[0].s, cast(char[]) "rdf:Predicate", P, last_element, list);
+										add_triple_in_list(r1_reif_triples[0].s, cast(char[]) "rdf:Object", O, last_element, list);
+
+										foreach(tt; r1_reif_triples)
+										{
+											// можно добавлять в список
+											if(trace_msg[0][10] == 1)
+												log.trace("getTriplesOfMask:можно добавлять в список :", tt.o);
+
+											add_triple_in_list(tt, last_element, list);
+										}
 									}
 								}
-
 								add_triple_in_list(S, P, O, last_element, list);
 							}
-							else if(_name_key[1] != 'r' && _name_key[2] != 'e' && _name_key[3] != 'i')
-							{
-								if(trace_msg[0][11] == 1)
-									log.trace("getTriplesOfMask:REIF _name_key:%s", _name_key);
-							}
+							//							else if(_name_key[1] != 'r' && _name_key[2] != 'e' && _name_key[3] != 'i')
+							//							{
+							//								if(trace_msg[0][11] == 1)
+							//									log.trace("getTriplesOfMask:REIF _name_key:%s", _name_key);
+							//							}
 
 							break;
 						}
@@ -1065,13 +1068,16 @@ class TripleStorageMongoDB: TripleStorage
 
 								while(bson_iterator_next(&i_L1))
 								{
-									char[] _name_key_L1 = fromStringz(bson_iterator_key(&i_L1));
 
 									switch(bson_iterator_type(&i_L1))
 									{
 
 										case bson_type.bson_object:
 										{
+											char[] _name_key_L1 = fromStringz(bson_iterator_key(&i_L1));
+											if(trace_msg[0][14] == 1)
+												log.trace("getTriplesOfMask:_name_key_L1 %s", _name_key_L1);
+
 											char* val_L2 = bson_iterator_value(&i_L1);
 
 											bson_iterator i_L2;
@@ -1089,20 +1095,17 @@ class TripleStorageMongoDB: TripleStorage
 														if(last_r_triples > r_triples.length)
 															r_triples.length += 50;
 
-														if(trace_msg[0][14] == 1)
-															log.trace("getTriplesOfMask:QQQ L2 %d", bson_iterator_type(&i_L2));
-
 														char[] _name_key_L2 = fromStringz(bson_iterator_key(&i_L2));
 
 														if(trace_msg[0][15] == 1)
-															log.trace("getTriplesOfMask:QQQ L2 KEY ", _name_key_L2);
+															log.trace("getTriplesOfMask:_name_key_L2=%s", _name_key_L2);
 
 														r_triple.p = _name_key_L2;
 
 														char[] _name_val_L2 = fromStringz(bson_iterator_string(&i_L2));
 
 														if(trace_msg[0][16] == 1)
-															log.trace("getTriplesOfMask:QQQ L2 VAL ", _name_val_L2);
+															log.trace("getTriplesOfMask:_name_val_L2L=%s", _name_val_L2);
 
 														r_triple.o = _name_val_L2;
 
@@ -1112,30 +1115,29 @@ class TripleStorageMongoDB: TripleStorage
 													}
 
 													default:
-														if(trace_msg[0][17] == 1)
-															log.trace("getTriplesOfMask:REIFFF #3");
-
 													break;
 												}
 											}
 
-											break;
-										}
-
-										case bson_type.bson_eoo:
-										{
-											char[] _name_val_L1 = fromStringz(bson_iterator_string(&i_L1));
-
-											if(trace_msg[0][18] == 1)
-												log.trace("getTriplesOfMask:%d %s %s ", bson_iterator_type(&i_L1), " QQQ L1 VAL ",
-														_name_val_L1);
-
 											r_triples.length = last_r_triples;
-											reif_triples[cast(immutable) _name_val_L1] = r_triples;
+											reif_triples[cast(immutable) _name_key_L1] = r_triples;
 
 											break;
 										}
+										/*
+										 case bson_type.bson_eoo:
+										 {
+										 char[] _name_val_L1 = fromStringz(bson_iterator_string(&i_L1));
 
+										 if(trace_msg[0][18] == 1)
+										 log.trace("getTriplesOfMask:bson_type.bson_eoo QQQ L1 VAL=%s", _name_val_L1);
+
+										 r_triples.length = last_r_triples;
+										 reif_triples[cast(immutable) _name_key_L1] = r_triples;
+
+										 break;
+										 }
+										 */
 										default:
 										break;
 									}
@@ -1148,10 +1150,11 @@ class TripleStorageMongoDB: TripleStorage
 
 						default:
 							{
-								char[] _name_key = fromStringz(bson_iterator_key(&it));
-
 								if(trace_msg[0][19] == 1)
+								{
+									char[] _name_key = fromStringz(bson_iterator_key(&it));
 									log.trace("getTriplesOfMask:_name_key:", _name_key);
+								}
 							}
 						break;
 
@@ -1198,7 +1201,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	private void add_triple_in_list(char[] S, char[] P, char[] O, ref triple_list_element last_added_element, ref triple_list_element list)
 	{
-//		trace_msg[1] = 1;
+		//		trace_msg[1] = 1;
 		if(trace_msg[1][0] == 1)
 			log.trace("add_triple_in_list last_added_element=%s", last_added_element);
 
