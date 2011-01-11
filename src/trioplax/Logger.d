@@ -67,8 +67,8 @@ public class Logger
                  
 		auto writer = appender!string();
 	       
-		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d]\n %sL\n ", year, month, day,
-				hour, minute, second, milliseconds, src);		
+		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d]\n%s\n", year, month, day,
+				hour, minute, second, milliseconds, str_io);		
 
 		writer.put(cast(char)0);
 
