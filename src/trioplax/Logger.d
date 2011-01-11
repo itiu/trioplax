@@ -80,6 +80,7 @@ public class Logger
 				fputc(*data, ff);
 			data++;
 		}
+		fputc('\r', ff);
 
 		fflush(ff);
 	}
