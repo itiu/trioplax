@@ -7,6 +7,9 @@ private import std.date;
 import std.array: appender;
 
 private import std.stdio;
+private import std.datetime;
+import std.c.linux.linux;
+
 
 //package
 //{
@@ -52,9 +55,20 @@ public class Logger
 		else
 			str_io = "OUTPUT";
 
+    		int tt = time(null);
+    		tm *ptm = localtime(&tt);
+    		int year = ptm.tm_year+1900;
+    		int month = ptm.tm_mon;
+    		int day = ptm.tm_mday;
+    		int hour = ptm.tm_hour;
+    		int minute = ptm.tm_min;
+    		int second = ptm.tm_sec;
+    		int milliseconds = msFromTime(now);
+                 
 		auto writer = appender!string();
-		formattedWrite(writer, "\n\n[%04d-%02d-%02d %02d:%02d:%02d.%03d]\n%s:\n", yearFromTime(now), monthFromTime(now), dateFromTime(now),
-				hourFromTime(now), minFromTime(now), secFromTime(now), msFromTime(now), str_io);
+	       
+		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d]\n %sL\n ", year, month, day,
+				hour, minute, second, milliseconds, src);		
 
 		writer.put(cast(char)0);
 
@@ -74,17 +88,33 @@ public class Logger
 	{
 		d_time now = getUTCtime();
 
+    		int tt = time(null);
+    		tm *ptm = localtime(&tt);
+    		int year = ptm.tm_year+1900;
+    		int month = ptm.tm_mon;
+    		int day = ptm.tm_mday;
+    		int hour = ptm.tm_hour;
+    		int minute = ptm.tm_min;
+    		int second = ptm.tm_sec;
+    		int milliseconds = msFromTime(now);
+                 
+//	       StopWatch sw1; sw1.start();
 		auto writer = appender!string();
-		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ", yearFromTime(now), monthFromTime(now), dateFromTime(now),
-				hourFromTime(now), minFromTime(now), secFromTime(now), msFromTime(now), src);		
-		
+	       
+		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ", year, month, day,
+				hour, minute, second, milliseconds, src);		
+
 		formattedWrite(writer, fmt, args);
 		writer.put(cast(char)0);
 
 		fputs(cast(char*) writer.data, ff);
 		fputc('\r', ff);
 
+//    		sw1.stop();
+//               writeln (cast(long) sw1.peek().microseconds);
+
 		fflush(ff);
+		
 		return writer.data;
 	}
 
