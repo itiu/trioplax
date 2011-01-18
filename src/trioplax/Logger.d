@@ -10,7 +10,6 @@ private import std.stdio;
 private import std.datetime;
 import std.c.linux.linux;
 
-
 //package
 //{
 //	Logger log;
@@ -21,7 +20,7 @@ public class Logger
 	private string trace_logfilename = "app.log";
 	private FILE* ff;
 	private string src = "";
-	
+
 	//	static this()
 	//	{
 	//		log = new Logger();
@@ -55,28 +54,27 @@ public class Logger
 		else
 			str_io = "OUTPUT";
 
-    		int tt = time(null);
-    		tm *ptm = localtime(&tt);
-    		int year = ptm.tm_year+1900;
-    		int month = ptm.tm_mon;
-    		int day = ptm.tm_mday;
-    		int hour = ptm.tm_hour;
-    		int minute = ptm.tm_min;
-    		int second = ptm.tm_sec;
-    		int milliseconds = msFromTime(now);
-                 
-		auto writer = appender!string();
-	       
-		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d]\n%s\n", year, month, day,
-				hour, minute, second, milliseconds, str_io);		
+		int tt = time(null);
+		tm* ptm = localtime(&tt);
+		int year = ptm.tm_year + 1900;
+		int month = ptm.tm_mon;
+		int day = ptm.tm_mday;
+		int hour = ptm.tm_hour;
+		int minute = ptm.tm_min;
+		int second = ptm.tm_sec;
+		int milliseconds = msFromTime(now);
 
-		writer.put(cast(char)0);
+		auto writer = appender!string();
+
+		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d]\n%s\n", year, month, day, hour, minute, second, milliseconds, str_io);
+
+		writer.put(cast(char) 0);
 
 		fputs(cast(char*) writer.data, ff);
 
 		for(int i = 0; i < len - 1; i++)
 		{
-			if (*data != 0)
+			if(*data != 0)
 				fputc(*data, ff);
 			data++;
 		}
@@ -89,33 +87,32 @@ public class Logger
 	{
 		d_time now = getUTCtime();
 
-    		int tt = time(null);
-    		tm *ptm = localtime(&tt);
-    		int year = ptm.tm_year+1900;
-    		int month = ptm.tm_mon;
-    		int day = ptm.tm_mday;
-    		int hour = ptm.tm_hour;
-    		int minute = ptm.tm_min;
-    		int second = ptm.tm_sec;
-    		int milliseconds = msFromTime(now);
-                 
-//	       StopWatch sw1; sw1.start();
+		int tt = time(null);
+		tm* ptm = localtime(&tt);
+		int year = ptm.tm_year + 1900;
+		int month = ptm.tm_mon;
+		int day = ptm.tm_mday;
+		int hour = ptm.tm_hour;
+		int minute = ptm.tm_min;
+		int second = ptm.tm_sec;
+		int milliseconds = msFromTime(now);
+
+		//	       StopWatch sw1; sw1.start();
 		auto writer = appender!string();
-	       
-		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ", year, month, day,
-				hour, minute, second, milliseconds, src);		
+
+		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ", year, month, day, hour, minute, second, milliseconds, src);
 
 		formattedWrite(writer, fmt, args);
-		writer.put(cast(char)0);
+		writer.put(cast(char) 0);
 
 		fputs(cast(char*) writer.data, ff);
-		fputc('\r', ff);
+		fputc('\n', ff);
 
-//    		sw1.stop();
-//               writeln (cast(long) sw1.peek().microseconds);
+		//    		sw1.stop();
+		//               writeln (cast(long) sw1.peek().microseconds);
 
 		fflush(ff);
-		
+
 		return writer.data;
 	}
 
