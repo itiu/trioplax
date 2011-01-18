@@ -167,138 +167,6 @@ class TripleStorageMongoDB: TripleStorage
 		store_predicate_in_list_on_idx_s1ppoo = _store_predicate_in_list_on_idx_s1ppoo;
 	}
 
-	private char[] p_rt = cast(char[]) "mo/at/acl#rt\0";
-
-	public triple_list_element getTriplesUseIndexS1PPOO(char[] s, char[] p, char[] o)
-	{
-		total_count_queries++;
-
-		triple_list_element list_in_cache = null;
-
-		bool f_is_query_stored = false;
-
-		bson_buffer bb;
-		bson b;
-
-		bson_buffer_init(&bb);
-
-		if(s !is null)
-			bson_append_stringA(&bb, cast(char[]) "mo/at/acl#tgSsE", p);
-
-		if(p !is null)
-		{
-			bson_append_stringA(&bb, cast(char[]) "mo/at/acl#eId", o);
-		}
-
-		bson_from_buffer(&b, &bb);
-
-		mongo_cursor* cursor = mongo_find(&conn, ns, &b, null, 0, 0, 0);
-
-		//		log.trace("getTriplesUseIndex #2");
-
-		triple_list_element list = null;
-		triple_list_element next_element = null;
-		triple_list_element prev_element = null;
-
-		int length_list = 0;
-
-		while(mongo_cursor_next(cursor))
-		{
-			//			log.trace("getTriplesUseIndex #3");
-			bson_iterator it;
-			bson_iterator_init(&it, cursor.current.data);
-
-			char[] ts = null;
-			char[] tp = null;
-
-			tp = p_rt;
-
-			char[] to = null;
-
-			while(bson_iterator_next(&it))
-			{
-
-				char[] name_key = fromStringz(bson_iterator_key(&it));
-
-				switch(bson_iterator_type(&it))
-				{
-					case bson_type.bson_string:
-					{
-						//						log.trace("getTriplesUseIndex #4");
-						char[] value = fromStringz(bson_iterator_string(&it));
-						//						int len = strlen(value);
-
-						//						printf("(string) \"%s \" %d\n", value, len);
-
-						if(name_key == "@")
-						{
-							ts = value;
-						}
-						else if(name_key == "mo/at/acl#rt")
-						{
-							to = value;
-						}
-						break;
-					}
-
-					default:
-					break;
-				}
-			}
-
-			//			next_element = cast(triple_list_element*) calloc(triple_list_element.sizeof, 1);
-
-			//			next_element = elements_in_list + last_used_of_list_pull;
-			next_element = new triple_list_element;
-			next_element.next_triple_list_element = null;
-
-			//			last_used_of_list_pull++;
-			//			if(last_used_of_list_pull > max_used_of_list_pull)
-			//				throw new Exception("list elements pull is overflow");
-
-			//			Triple triple = triples + last_used_of_triples_pull;
-			Triple triple = new Triple;
-
-			//			last_used_of_triples_pull++;
-			//			if(last_used_of_triples_pull > max_used_of_triples_pull)
-			//				throw new Exception("triples pull is overflow");
-
-			length_list++;
-
-			if(prev_element !is null)
-			{
-				prev_element.next_triple_list_element = next_element;
-			}
-
-			prev_element = next_element;
-			if(list is null)
-			{
-				//				log.trace("getTriplesUseIndex #1 [{}] [{}] [{}]", toString(s), toString(p), toString(o));
-				list = next_element;
-			}
-			//			log.trace ("list={:X8}, next_element={:X8}, last_used_element_in_pull={}", list, next_element, last_used_element_in_pull);  
-
-			triple.s = ts;
-			triple.p = tp;
-			triple.o = to;
-
-			next_element.triple = triple;
-		}
-
-		//		if(log_query == true)
-		//			logging_query("GET USE INDEX", s, p, o, list);
-
-		mongo_cursor_destroy(cursor);
-		bson_destroy(&b);
-
-		if(list !is null && f_trace_list_pull == true)
-		{
-			count_all_allocated_lists++;
-		}
-
-		return list;
-	}
-
 	public bool isExistSubject(char[] subject)
 	{
 		StopWatch sw;
@@ -340,8 +208,7 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(t > 500)
 		{
-			writeln("Subject:", subject);
-			printf("total time isExistSubject: %d[µs]\n", t);
+			log.trace("isExistSubject [%s], total time: %d[µs]", subject, t);
 		}
 		return res;
 	}
@@ -483,8 +350,7 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(t > 500)
 		{
-			writeln("query-> S:", s, " P:", p, " O:", o);
-			printf("total time getTriple: %d[µs]\n", t);
+			log.trace("query-> [%s][%s][%s], total time getTriple: %d[µs] ", s, p, o, t);
 		}
 
 		return list;
@@ -697,7 +563,7 @@ class TripleStorageMongoDB: TripleStorage
 
 		if(t > 300 || trace_msg[4][2] == 1)
 		{
-			printf("total time add triple: %d[µs]\n", cast(long) sw.peek().microseconds);
+			log.trace("total time add triple: %d[µs]", cast(long) sw.peek().microseconds);
 		}
 
 		return 0;
@@ -913,7 +779,21 @@ class TripleStorageMongoDB: TripleStorage
 				return null;
 			}
 
+			StopWatch sw0;
+			sw0.start();
+
 			mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
+
+			sw0.stop();
+			long t0 = cast(long) sw0.peek().microseconds;
+
+			if(t0 > 100)
+			{
+				char[] ss = bson_to_string(&query);
+				log.trace("getTriplesOfMask:QUERY:\n %s", ss);
+
+				log.trace("getTripleOfMask: mongo_find: %d[µs]", t0);
+			}
 
 			char[] S;
 			char[] P;
@@ -1164,7 +1044,6 @@ class TripleStorageMongoDB: TripleStorage
 			}
 
 			mongo_cursor_destroy(cursor);
-			bson_destroy(&query);
 			//			bson_destroy(&fields);
 
 			sw.stop();
@@ -1172,11 +1051,16 @@ class TripleStorageMongoDB: TripleStorage
 
 			if(t > 100 || trace_msg[0][20] == 1)
 			{
+				char[] ss = bson_to_string(&query);
+				log.trace("getTriplesOfMask:QUERY:\n %s", ss);
+
 				log.trace("total time getTripleOfMask: %d[µs]", t);
 			}
 
 			if(trace_msg[0][21] == 1)
 				print_list_triple(list);
+
+			bson_destroy(&query);
 
 			return list;
 		}
