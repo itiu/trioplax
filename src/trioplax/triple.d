@@ -1,15 +1,35 @@
 module trioplax.triple;
-class Triple
+
+import std.array;
+import std.stdio;
+
+class List
 {
-    char[] s;
-    char[] p;
-    char[] o;
-    
-    byte lang;
+	Appender!(Triple[]) lst;
 }
 
-class triple_list_element
+class Triple
 {
-    Triple triple;
-    triple_list_element next_triple_list_element;
+	string S;
+	string P;
+	string O;
+
+	byte lang;
+
+	this()
+	{
+	}
+
+	this(string _S, string _P, string _O)
+	{
+		S = _S;
+		P = _P;
+		O = _O;
+	}
+
+	string toString()
+	{
+		return S ~ " " ~ P ~ " " ~ O;
+	}
+
 }
