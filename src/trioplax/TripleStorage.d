@@ -2,18 +2,14 @@ module trioplax.TripleStorage;
 
 private import trioplax.triple;
 
-public immutable byte _NONE = 0;
-public immutable byte _RU = 1;
-public immutable byte _EN = 2;
-
 public immutable byte _GET = 0;
 public immutable byte _GET_REIFED = 1;
 
 interface TripleStorage
 {
 	// main functions	
-	public int addTriple(string s, string p, string o, byte lang=_NONE);
-	public void addTripleToReifedData(string reif_subject, string reif_predicate, string reif_object, string p, string o, byte lang = _NONE);
+	public int addTriple(Triple tt);
+	public void addTripleToReifedData(Triple reif, string p, string o, byte lang);
 	
 	public List getTriples(string s, string p, string o);
 	public List getTriplesOfMask(ref Triple[] triples, byte[char[]] read_predicates);

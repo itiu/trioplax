@@ -4,14 +4,46 @@ private import trioplax.TripleStorage;
 private import trioplax.memory.ComplexKeys;
 private import trioplax.triple;
 
-class TripleStorageMemory : TripleStorage 
+class TripleStorageMemory: TripleStorage
 {
-	public int addTriple(string s, string p, string o, byte lang = _NONE)
+	List[ThreeKeys] iSPO;
+	List[TwoKeys] iSP;
+	List[TwoKeys] iPO;
+	List[TwoKeys] iSO;
+	List[string] iS;
+	List[string] iP;
+	List[string] iO;
+
+	public int addTriple(Triple tt)
 	{
-		return 0;
+		ThreeKeys spo = new ThreeKeys(tt.S, tt.P, tt.O);
+
+		List apnpdr;
+		apnpdr = iSPO.get(spo, apnpdr);
+
+		if(apnpdr is null)
+		{
+			apnpdr = new List;
+			iSPO[spo] = apnpdr;
+			apnpdr.lst.put(tt);
+		}
+		else
+		{
+			//                      writeln("triple ", t, " already exist in index");
+			return -1;
+		}
+
+		addIntoTwoIndex(iSP, tt.S, tt.P, tt);
+		addIntoTwoIndex(iPO, tt.P, tt.O, tt);
+		addIntoTwoIndex(iSO, tt.S, tt.O, tt);
+		addIntoOneIndex(iS, tt.S, tt);
+		addIntoOneIndex(iP, tt.P, tt);
+		addIntoOneIndex(iO, tt.O, tt);
+
+		return 1;
 	}
 
-	public void addTripleToReifedData(string reif_subject, string reif_predicate, string reif_object, string p, string o, byte lang = _NONE)
+	public void addTripleToReifedData(Triple reif, string p, string o, byte lang)
 	{
 	}
 
@@ -58,5 +90,50 @@ class TripleStorageMemory : TripleStorage
 
 	public void print_stat()
 	{
+	}
+
+	private void addIntoTwoIndex(ref List[TwoKeys] idx, string _key1, string _key2, Triple tt)
+	{
+		TwoKeys xx = new TwoKeys(_key1, _key2);
+
+		List apnpdr;
+		apnpdr = idx.get(xx, apnpdr);
+		if(apnpdr is null)
+		{
+			//                      writeln ("###");
+			apnpdr = new List;
+			idx[xx] = apnpdr;
+			//                      writeln ("iXX.length=", idx.keys.length);
+		}
+		apnpdr.lst.put(tt);
+
+	}
+
+	private void addIntoOneIndex(ref List[string] idx, string _key1, Triple tt)
+	{
+		List apnpdr;
+		apnpdr = idx.get(_key1, apnpdr);
+		if(apnpdr is null)
+		{
+			apnpdr = new List;
+			idx[_key1] = apnpdr;
+		}
+		apnpdr.lst.put(tt);
+
+		//          if (_key1 == "<http://www.census.gov/tiger/2002/vocab#start>")
+		{
+			//                  List apnpdr1;
+			//                  apnpdr1 = idx.get("<http://www.census.gov/tiger/2002/vocab#start>", apnpdr1);
+
+			//          if(apnpdr !is null && apnpdr.lst.data.length > 85500)
+			//          {
+			//                  writeln("@2 get iP.ptr", cast(void*)&iP);
+			//                  writeln("apnpdr.ptr =", cast(void*)apnpdr);
+			//                  writeln("key1 = [", _key1, "]");
+			//                  writeln("apnpdr.data.length =", apnpdr.lst.data.length);
+			//                  writeln("iP,keys =", iP.keys);
+			//          }
+		}
+
 	}
 }

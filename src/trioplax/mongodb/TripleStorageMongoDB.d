@@ -137,7 +137,7 @@ class TripleStorageMongoDB: TripleStorage
 
 			if(subject !is null)
 			{
-				bson_append_stringA(&bb, cast(char[]) "@", cast(char[])subject);
+				bson_append_stringA(&bb, cast(char[]) "@", cast(char[]) subject);
 			}
 
 			bson_from_buffer(&query, &bb);
@@ -168,8 +168,8 @@ class TripleStorageMongoDB: TripleStorage
 
 	public List getTriples(string s, string p, string o)
 	{
-		List list = new List ();
-		
+		List list = new List();
+
 		StopWatch sw;
 		sw.start();
 
@@ -191,12 +191,12 @@ class TripleStorageMongoDB: TripleStorage
 
 			if(s !is null)
 			{
-				bson_append_stringA(&bb, cast(char[]) "@", cast(char[])s);
+				bson_append_stringA(&bb, cast(char[]) "@", cast(char[]) s);
 			}
 
 			if(p !is null && o !is null)
 			{
-				bson_append_stringA(&bb, cast(char[])p, cast(char[])o);
+				bson_append_stringA(&bb, cast(char[]) p, cast(char[]) o);
 			}
 
 			//			bson_append_int(&bb2, cast(char*)"@", 1);
@@ -402,32 +402,34 @@ class TripleStorageMongoDB: TripleStorage
 		//		if(cache_query_result !is null)
 		//			cache_query_result.removeTriple(s, p, o);
 
-//		if(log_query == true)
-//			logging_query("REMOVE", s, p, o, null);
+		//		if(log_query == true)
+		//			logging_query("REMOVE", s, p, o, null);
 
 		return true;
 	}
 
-	public void addTripleToReifedData(string reif_subject, string reif_predicate, string reif_object, string p, string o, byte lang = _NONE)
+	public void addTripleToReifedData(Triple reif, string p, string o, byte lang)
 	{
 		//  {SUBJECT:[$reif_subject]}{$set: {'_reif_[$reif_predicate].[$reif_object].[$p]' : [$o]}});
+		Triple newtt = new Triple;
 
-		p = "_reif_" ~ reif_predicate ~ "." ~ reif_object ~ "." ~ p ~ "";
-
-		addTriple(reif_subject, p, o, lang);
-
-		return;
+		newtt.S = reif.S;
+		newtt.P = "_reif_" ~ reif.P ~ "." ~ reif.O ~ "." ~ p ~ "";		
+		newtt.O = o;
+		newtt.lang = lang;
+		
+		addTriple(newtt);
 	}
 
-	public int addTriple(string s, string p, string o, byte lang = _NONE)
+	public int addTriple(Triple tt)
 	{
 		//				trace_msg[4] = 1;
 
 		StopWatch sw;
 		sw.start();
 
-//		if(trace_msg[4][1] == 1)
-//			logging_query("ADD", s, p, o, null);
+		//		if(trace_msg[4][1] == 1)
+		//			logging_query("ADD", s, p, o, null);
 
 		//		if(trace_msg[4][0] == 1)
 		//			log.trace("TripleStorageMongoDB:add triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\" lang=", lang);
@@ -438,20 +440,20 @@ class TripleStorageMongoDB: TripleStorage
 		bson cond;
 
 		bson_buffer_init(&bb);
-		bson_append_stringA(&bb, cast(char[]) "@", cast(char[])s);
+		bson_append_stringA(&bb, cast(char[]) "@", cast(char[]) tt.S);
 		bson_from_buffer(&cond, &bb);
 
 		bson_buffer_init(&bb);
-		if((p in predicate_as_multiple) !is null)
+		if((tt.P in predicate_as_multiple) !is null)
 		{
 			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
 
-			if(lang == _NONE)
-				bson_append_stringA(sub, cast(char[])p, cast(char[])o);
-			else if(lang == _RU)
-				bson_append_stringA(sub, cast(char[])p, cast(char[])(o ~ "@ru"));
-			if(lang == _EN)
-				bson_append_stringA(sub, cast(char[])p, cast(char[])(o ~ "@en"));
+			if(tt.lang == _NONE)
+				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) tt.O);
+			else if(tt.lang == _RU)
+				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) (tt.O ~ "@ru"));
+			if(tt.lang == _EN)
+				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) (tt.O ~ "@en"));
 
 			bson_append_finish_object(sub);
 		}
@@ -459,20 +461,20 @@ class TripleStorageMongoDB: TripleStorage
 		{
 			bson_buffer* sub;
 
-			if(lang == _NONE)
+			if(tt.lang == _NONE)
 			{
 				sub = bson_append_start_object(&bb, "$set");
-				bson_append_stringA(sub, cast(char[])p, cast(char[])o);
+				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) tt.O);
 			}
-			else if(lang == _RU)
+			else if(tt.lang == _RU)
 			{
 				sub = bson_append_start_object(&bb, "$addToSet");
-				bson_append_stringA(sub, cast(char[])p, cast(char[])(o ~ "@ru"));
+				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) (tt.O ~ "@ru"));
 			}
-			else if(lang == _EN)
+			else if(tt.lang == _EN)
 			{
 				sub = bson_append_start_object(&bb, "$addToSet");
-				bson_append_stringA(sub, cast(char[])p, cast(char[])(o ~ "@en"));
+				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) (tt.O ~ "@en"));
 			}
 
 			bson_append_finish_object(sub);
@@ -483,14 +485,14 @@ class TripleStorageMongoDB: TripleStorage
 		{
 			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
 
-			string l_o = tolower(o);
+			string l_o = tolower(tt.O);
 
-			if(lang == _NONE)
-				bson_append_stringA(sub, cast(char[]) "_keywords", cast(char[])l_o);
-			else if(lang == _RU)
-				bson_append_stringA(sub, cast(char[]) "_keywords", cast(char[])l_o ~ "@ru");
-			if(lang == _EN)
-				bson_append_stringA(sub, cast(char[]) "_keywords", cast(char[])l_o ~ "@en");
+			if(tt.lang == _NONE)
+				bson_append_stringA(sub, cast(char[]) "_keywords", cast(char[]) l_o);
+			else if(tt.lang == _RU)
+				bson_append_stringA(sub, cast(char[]) "_keywords", cast(char[]) l_o ~ "@ru");
+			if(tt.lang == _EN)
+				bson_append_stringA(sub, cast(char[]) "_keywords", cast(char[]) l_o ~ "@en");
 
 			bson_append_finish_object(sub);
 		}
@@ -536,12 +538,12 @@ class TripleStorageMongoDB: TripleStorage
 	{
 		bson_buffer* sub = bson_append_start_object(bb, "_keywords");
 
-		bson_buffer* sub1 = bson_append_start_array(bb, cast(char*)"$all\0");
+		bson_buffer* sub1 = bson_append_start_array(bb, cast(char*) "$all\0");
 
 		string[] values = split(fulltext_param, ",");
 		foreach(val; values)
 		{
-			bson_append_regexA(sub1, null, cast(char[])val, null);
+			bson_append_regexA(sub1, null, cast(char[]) val, null);
 		}
 
 		bson_append_finish_object(sub1);
@@ -854,7 +856,7 @@ class TripleStorageMongoDB: TripleStorage
 
 														r_triple.O = _name_val_L2;
 
-														r_triple.S = cast(immutable)reifed_data_subj;
+														r_triple.S = cast(immutable) reifed_data_subj;
 
 														break;
 													}
@@ -922,8 +924,8 @@ class TripleStorageMongoDB: TripleStorage
 				log.trace("total time getTripleOfMask: %d[µs]", t);
 			}
 
-//			if(trace_msg[0][21] == 1)
-//				print_list_triple(list);
+			//			if(trace_msg[0][21] == 1)
+			//				print_list_triple(list);
 
 			bson_destroy(&query);
 
@@ -1011,7 +1013,7 @@ class TripleStorageMongoDB: TripleStorage
 			count_of_myCreatedString = 0;
 		}
 
-		return cast(immutable)res;
+		return cast(immutable) res;
 	}
 
 	string fromStringz(char* s, int len)
@@ -1033,7 +1035,7 @@ class TripleStorageMongoDB: TripleStorage
 			count_of_myCreatedString = 0;
 		}
 
-		return cast(immutable)res;
+		return cast(immutable) res;
 	}
 
 	private void add_to_query(string field_name, string field_value, bson_buffer* bb)
@@ -1053,7 +1055,7 @@ class TripleStorageMongoDB: TripleStorage
 			string[] values = split(field_value, ",");
 			if(values.length > 0)
 			{
-				bson_buffer* sub = bson_append_start_array(bb, cast(char*)"$or");
+				bson_buffer* sub = bson_append_start_array(bb, cast(char*) "$or");
 
 				foreach(val; values)
 				{
@@ -1062,7 +1064,7 @@ class TripleStorageMongoDB: TripleStorage
 					if(field_is_multilang)
 						bson_append_stringA(sub1, cast(char[]) field_name, cast(char[]) (val ~ "@ru"));
 					else
-						bson_append_stringA(sub1, cast(char[])field_name, cast(char[])val);
+						bson_append_stringA(sub1, cast(char[]) field_name, cast(char[]) val);
 
 					bson_append_finish_object(sub1);
 				}
@@ -1074,10 +1076,10 @@ class TripleStorageMongoDB: TripleStorage
 		{
 			if(field_is_multilang)
 			{
-				bson_append_stringA(bb, cast(char[])field_name, cast(char[])(field_value ~ "@ru"));
+				bson_append_stringA(bb, cast(char[]) field_name, cast(char[]) (field_value ~ "@ru"));
 			}
 			else
-				bson_append_stringA(bb, cast(char[]) field_name, cast(char[])field_value);
+				bson_append_stringA(bb, cast(char[]) field_name, cast(char[]) field_value);
 		}
 
 		if(trace_msg[3][1] == 1)
