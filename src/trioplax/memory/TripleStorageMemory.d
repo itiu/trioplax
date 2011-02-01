@@ -47,9 +47,52 @@ class TripleStorageMemory: TripleStorage
 	{
 	}
 
-	public List getTriples(string s, string p, string o)
+	public List getTriples(string _S, string _P, string _O)
 	{
-		return null;
+		List apnpdr;
+
+		if(_S !is null && _P !is null && _O !is null)
+		{
+			ThreeKeys spo = new ThreeKeys(_S, _P, _O);
+
+			apnpdr = iSPO.get(spo, apnpdr);
+		}
+		else if(_S !is null && _P !is null && _O is null)
+		{
+			TwoKeys sp = new TwoKeys(_S, _P);
+
+			apnpdr = iSP.get(sp, apnpdr);
+		}
+		else if(_S is null && _P !is null && _O !is null)
+		{
+			TwoKeys po = new TwoKeys(_P, _O);
+
+			apnpdr = iPO.get(po, apnpdr);
+		}
+		else if(_S !is null && _P is null && _O !is null)
+		{
+			TwoKeys so = new TwoKeys(_S, _O);
+
+			apnpdr = iSO.get(so, apnpdr);
+		}
+		else if(_S !is null && _P is null && _O is null)
+		{
+			apnpdr = iS.get(_S, apnpdr);
+		}
+		else if(_S is null && _P !is null && _O is null)
+		{
+			apnpdr = iP.get(_P, apnpdr);
+		}
+		else if(_S is null && _P is null && _O !is null)
+		{
+			apnpdr = iO.get(_O, apnpdr);
+		}
+
+		if(apnpdr !is null)
+			return apnpdr.lst.data;
+		else
+			return null;
+
 	}
 
 	public List getTriplesOfMask(ref Triple[] triples, byte[char[]] read_predicates)
@@ -90,6 +133,13 @@ class TripleStorageMemory: TripleStorage
 
 	public void print_stat()
 	{
+		writeln("iSPO.length=", iSPO.keys.length);
+		writeln("iSP.length=", iSP.keys.length);
+		writeln("iPO.length=", iPO.keys.length);
+		writeln("iSO.length=", iSO.keys.length);
+		writeln("iS.length=", iS.keys.length);
+		writeln("iP.length=", iP.keys.length);
+		writeln("iO.length=", iO.keys.length);
 	}
 
 	private void addIntoTwoIndex(ref List[TwoKeys] idx, string _key1, string _key2, Triple tt)
