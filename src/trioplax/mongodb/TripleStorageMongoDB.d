@@ -157,7 +157,10 @@ class TripleStorageMongoDB: TripleStorage
 		bson_destroy(&query);
 
 		sw.stop();
-		long t = cast(long) sw.peek().microseconds;
+		version (dmd2_052)
+		    long t = cast(long) sw.peek().usecs;
+		else    
+		    long t = cast(long) sw.peek().microseconds;
 
 		if(t > 500)
 		{
@@ -297,7 +300,10 @@ class TripleStorageMongoDB: TripleStorage
 
 		//		log.trace("list={:X8}", list);
 		sw.stop();
-		long t = cast(long) sw.peek().microseconds;
+                version (dmd2_052)
+                    long t = cast(long) sw.peek().usecs;
+                else
+                    long t = cast(long) sw.peek().microseconds;
 
 		if(t > 500)
 		{
@@ -507,11 +513,15 @@ class TripleStorageMongoDB: TripleStorage
 		bson_destroy(&op);
 
 		sw.stop();
-		long t = cast(long) sw.peek().microseconds;
+                version (dmd2_052)
+                    long t = cast(long) sw.peek().usecs;
+                else
+                    long t = cast(long) sw.peek().microseconds;
+
 
 		if(t > 300 || trace_msg[4][2] == 1)
 		{
-			log.trace("total time add triple: %d[µs]", cast(long) sw.peek().microseconds);
+			log.trace("total time add triple: %d[µs]", t);
 		}
 
 		return 0;
@@ -652,7 +662,11 @@ class TripleStorageMongoDB: TripleStorage
 			mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
 
 			sw0.stop();
-			long t0 = cast(long) sw0.peek().microseconds;
+
+                	version (dmd2_052)
+                    		long t0 = cast(long) sw0.peek().usecs;
+                	else
+                    		long t0 = cast(long) sw0.peek().microseconds;
 
 			if(t0 > 100)
 			{
@@ -914,7 +928,10 @@ class TripleStorageMongoDB: TripleStorage
 			//			bson_destroy(&fields);
 
 			sw.stop();
-			long t = cast(long) sw.peek().microseconds;
+                version (dmd2_052)
+                    long t = cast(long) sw.peek().usecs;
+                else
+                    long t = cast(long) sw.peek().microseconds;
 
 			if(t > 100 || trace_msg[0][20] == 1)
 			{
