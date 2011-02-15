@@ -20,6 +20,12 @@ private import mongo;
 
 Logger log;
 
+enum caching_type: byte
+{
+ ALL_DATA = 0,
+ QUERY_RESULT = 1
+}
+
 static this()
 {
 	log = new Logger("trioplax.log", "");
