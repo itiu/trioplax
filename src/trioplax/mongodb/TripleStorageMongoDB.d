@@ -66,11 +66,11 @@ class TripleStorageMongoDB: TripleStorage
 	TripleStorageMemory ts_mem;
 
 	byte caching_strategy;
-	
+
 	this(string host, int port, string collection, byte _caching_strategy = caching_type.NONE)
 	{
 		caching_strategy = _caching_strategy;
-		
+
 		multilang_predicates["swrc:name"] = true;
 		multilang_predicates["swrc:firstName"] = true;
 		multilang_predicates["swrc:lastName"] = true;
@@ -114,7 +114,7 @@ class TripleStorageMongoDB: TripleStorage
 			{
 				// для этой стратегии кеширования, следует загрузить весь кеш, данными из mongodb
 
-				getTriples(null, null, null, &add_triple_to_cache);		
+				getTriples(null, null, null, &add_triple_to_cache);
 			}
 
 		}
@@ -122,10 +122,31 @@ class TripleStorageMongoDB: TripleStorage
 
 	private void add_triple_to_cache(string S, string P, string O, ref List list)
 	{
-		writeln ("s=", S, ", p=", P, ", o=", O);
+		//		writeln("s=", S, ", p=", P, ", o=", O);
+		Triple triple = new Triple;
+
+		triple.S = S;
+		triple.P = P;
+		string[] o_tags = std.string.split(O, "@");
+
+		if(o_tags[].length > 1)
+		{
+			triple.O = o_tags[0];
+
+			if(o_tags[1] == "ru")
+				triple.lang = _RU;
+			if(o_tags[1] == "en")
+				triple.lang = _EN;
+		}
+		else
+		{
+			triple.O = O;
+			triple.lang = _NONE;
+		}
+
+		ts_mem.addTriple(triple);
 	}
 
-	
 	public void set_cache()
 	{
 	}
@@ -133,6 +154,7 @@ class TripleStorageMongoDB: TripleStorage
 	public void set_log_query_mode(bool on_off)
 	{
 		log_query = on_off;
+
 	}
 
 	public void define_predicate_as_multiple(char[] predicate)
@@ -161,6 +183,9 @@ class TripleStorageMongoDB: TripleStorage
 
 	public bool isExistSubject(string subject)
 	{
+		if(ts_mem !is null)
+			return ts_mem.isExistSubject(subject);
+
 		StopWatch sw;
 		sw.start();
 
@@ -210,9 +235,16 @@ class TripleStorageMongoDB: TripleStorage
 
 	public List getTriples(string s, string p, string o)
 	{
-		return getTriples(s, p, o, &add_triple_in_list);
+		if(ts_mem !is null)
+		{
+			List lst = ts_mem.getTriples(s, p, o);
+			return lst;
+		}
+		else
+			return getTriples(s, p, o, &add_triple_in_list);
 	}
 
+	// TODO не возвращает предикаты с множественными значениями
 	public List getTriples(string s, string p, string o, void delegate(string S, string P, string O, ref List list) this_triple)
 	{
 		List list = new List();
@@ -283,10 +315,10 @@ class TripleStorageMongoDB: TripleStorage
 					case bson_type.bson_string:
 
 						string name_key = fromStringz(bson_iterator_key(&it));
-						//						writeln("name_key=[", name_key, "]");
+						//						log.trace(" name_key=[%s]", name_key);
 
 						string value = fromStringz(bson_iterator_string(&it));
-						//						writeln(" value=[", value, "]");
+						//						log.trace(" value=[%s]", value);
 						{
 
 							if(name_key == "@")
@@ -294,15 +326,13 @@ class TripleStorageMongoDB: TripleStorage
 								//								writeln("ts = value");
 								ts = value;
 							}
-
 							else if(p !is null && name_key == p)
 							{
 								//								writeln("to = value");
 								tp = name_key;
 								to = value;
 							}
-
-							if(p is null)
+							else if(p is null)
 							{
 								tp = name_key;
 								to = value;
@@ -565,6 +595,11 @@ class TripleStorageMongoDB: TripleStorage
 		if(t > 300 || trace_msg[4][2] == 1)
 		{
 			log.trace("total time add triple: %d[µs]", t);
+		}
+
+		if(ts_mem !is null)
+		{
+			ts_mem.addTriple(tt);
 		}
 
 		return 0;

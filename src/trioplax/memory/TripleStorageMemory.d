@@ -1,10 +1,18 @@
 module trioplax.memory.TripleStorageMemory;
 
+private import std.stdio;
+
 private import trioplax.TripleStorage;
 private import trioplax.memory.ComplexKeys;
 private import trioplax.triple;
+private import trioplax.Logger;
 
-private import std.stdio;
+Logger log;
+
+static this()
+{
+	log = new Logger("trioplax.log", "");
+}
 
 class TripleStorageMemory: TripleStorage
 {
@@ -18,6 +26,8 @@ class TripleStorageMemory: TripleStorage
 
 	public int addTriple(Triple tt)
 	{
+		log.trace ("add triple into mem: [%s] [%s] [%s]", tt.S, tt.P, tt.O);
+
 		ThreeKeys spo = new ThreeKeys(tt.S, tt.P, tt.O);
 
 		List apnpdr;
@@ -31,7 +41,7 @@ class TripleStorageMemory: TripleStorage
 		}
 		else
 		{
-			//                      writeln("triple ", t, " already exist in index");
+			log.trace("triple %s already exist in index", tt);
 			return -1;
 		}
 
@@ -51,13 +61,21 @@ class TripleStorageMemory: TripleStorage
 
 	public List getTriples(string _S, string _P, string _O)
 	{
+		log.trace ("#getTriples [%s] [%s] [%s]", _S, _P, _O);
+		
 		List apnpdr;
 
 		if(_S !is null && _P !is null && _O !is null)
 		{
+//			log.trace ("#getTriples iSPO");
 			ThreeKeys spo = new ThreeKeys(_S, _P, _O);
 
 			apnpdr = iSPO.get(spo, apnpdr);
+//			log.trace ("#getTriples iSPO ok");
+//			log.trace ("#getTriples apnpdr=%s", apnpdr);
+//			log.trace ("#getTriples apnpdr.lst=%s", apnpdr.lst);
+//			log.trace ("#getTriples apnpdr.lst.data=%s", apnpdr.lst.data);
+//			log.trace ("#getTriples apnpdr.lst.data.length=%d", apnpdr.lst.data.length);
 		}
 		else if(_S !is null && _P !is null && _O is null)
 		{
@@ -79,7 +97,13 @@ class TripleStorageMemory: TripleStorage
 		}
 		else if(_S !is null && _P is null && _O is null)
 		{
+//			log.trace ("#getTriples iS");
 			apnpdr = iS.get(_S, apnpdr);
+//			log.trace ("#getTriples iS ok");
+//			log.trace ("#getTriples apnpdr=%s", apnpdr);
+//			log.trace ("#getTriples apnpdr.lst=%s", apnpdr.lst);
+//			log.trace ("#getTriples apnpdr.lst.data=%s", apnpdr.lst.data);
+//			log.trace ("#getTriples apnpdr.lst.data.length=%d", apnpdr.lst.data.length);
 		}
 		else if(_S is null && _P !is null && _O is null)
 		{
@@ -104,6 +128,13 @@ class TripleStorageMemory: TripleStorage
 
 	public bool isExistSubject(string subject)
 	{
+		List apnpdr;
+
+		apnpdr = iS.get(subject, apnpdr);
+
+		if(apnpdr.lst.data.length > 0)
+			return true;
+
 		return false;
 	}
 
@@ -164,28 +195,18 @@ class TripleStorageMemory: TripleStorage
 	private void addIntoOneIndex(ref List[string] idx, string _key1, Triple tt)
 	{
 		List apnpdr;
-		apnpdr = idx.get(_key1, apnpdr);
+		
+		char[] key = new char [_key1.length];
+		key[0..$] = _key1[0..$];
+		
+//		log.trace ("add into mem: key=%s", key);
+		
+		apnpdr = idx.get(cast(immutable)key, apnpdr);
 		if(apnpdr is null)
 		{
 			apnpdr = new List;
-			idx[_key1] = apnpdr;
+			idx[cast(immutable)key] = apnpdr;
 		}
 		apnpdr.lst.put(tt);
-
-		//          if (_key1 == "<http://www.census.gov/tiger/2002/vocab#start>")
-		{
-			//                  List apnpdr1;
-			//                  apnpdr1 = idx.get("<http://www.census.gov/tiger/2002/vocab#start>", apnpdr1);
-
-			//          if(apnpdr !is null && apnpdr.lst.data.length > 85500)
-			//          {
-			//                  writeln("@2 get iP.ptr", cast(void*)&iP);
-			//                  writeln("apnpdr.ptr =", cast(void*)apnpdr);
-			//                  writeln("key1 = [", _key1, "]");
-			//                  writeln("apnpdr.data.length =", apnpdr.lst.data.length);
-			//                  writeln("iP,keys =", iP.keys);
-			//          }
-		}
-
 	}
 }
