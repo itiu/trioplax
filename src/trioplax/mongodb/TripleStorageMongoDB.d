@@ -22,8 +22,9 @@ Logger log;
 
 enum caching_type: byte
 {
- ALL_DATA = 0,
- QUERY_RESULT = 1
+ NONE = 0,	
+ ALL_DATA = 1,
+ QUERY_RESULT = 2
 }
 
 static this()
@@ -60,7 +61,7 @@ class TripleStorageMongoDB: TripleStorage
 	int count_of_myCreatedString;
 	int max_of_myCreatedString = 200_000;
 
-	this(string host, int port, string collection, byte caching_strategy)
+	this(string host, int port, string collection, byte caching_strategy = caching_type.NONE)
 	{
 		multilang_predicates["swrc:name"] = true;
 		multilang_predicates["swrc:firstName"] = true;
