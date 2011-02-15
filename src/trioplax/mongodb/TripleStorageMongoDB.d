@@ -54,7 +54,7 @@ class TripleStorageMongoDB: TripleStorage
 	int count_of_myCreatedString;
 	int max_of_myCreatedString = 200_000;
 
-	this(string host, int port, string collection)
+	this(string host, int port, string collection, byte caching_strategy)
 	{
 		multilang_predicates["swrc:name"] = true;
 		multilang_predicates["swrc:firstName"] = true;
@@ -157,10 +157,10 @@ class TripleStorageMongoDB: TripleStorage
 		bson_destroy(&query);
 
 		sw.stop();
-		version (dmd2_052)
-		    long t = cast(long) sw.peek().usecs;
-		else    
-		    long t = cast(long) sw.peek().microseconds;
+		version(dmd2_052)
+			long t = cast(long) sw.peek().usecs;
+		else
+			long t = cast(long) sw.peek().microseconds;
 
 		if(t > 500)
 		{
@@ -300,10 +300,10 @@ class TripleStorageMongoDB: TripleStorage
 
 		//		log.trace("list={:X8}", list);
 		sw.stop();
-                version (dmd2_052)
-                    long t = cast(long) sw.peek().usecs;
-                else
-                    long t = cast(long) sw.peek().microseconds;
+		version(dmd2_052)
+			long t = cast(long) sw.peek().usecs;
+		else
+			long t = cast(long) sw.peek().microseconds;
 
 		if(t > 500)
 		{
@@ -420,10 +420,10 @@ class TripleStorageMongoDB: TripleStorage
 		Triple newtt = new Triple;
 
 		newtt.S = reif.S;
-		newtt.P = "_reif_" ~ reif.P ~ "." ~ reif.O ~ "." ~ p ~ "";		
+		newtt.P = "_reif_" ~ reif.P ~ "." ~ reif.O ~ "." ~ p ~ "";
 		newtt.O = o;
 		newtt.lang = lang;
-		
+
 		addTriple(newtt);
 	}
 
@@ -513,11 +513,10 @@ class TripleStorageMongoDB: TripleStorage
 		bson_destroy(&op);
 
 		sw.stop();
-                version (dmd2_052)
-                    long t = cast(long) sw.peek().usecs;
-                else
-                    long t = cast(long) sw.peek().microseconds;
-
+		version(dmd2_052)
+			long t = cast(long) sw.peek().usecs;
+		else
+			long t = cast(long) sw.peek().microseconds;
 
 		if(t > 300 || trace_msg[4][2] == 1)
 		{
@@ -614,7 +613,7 @@ class TripleStorageMongoDB: TripleStorage
 				}
 			}
 
-			reading_predicates["@"] = _GET;
+			reading_predicates["@"] = field.GET;
 
 			//			int count_readed_fields = 0;
 			//			for(int i = 0; i < reading_predicates.keys.length; i++)
@@ -663,10 +662,10 @@ class TripleStorageMongoDB: TripleStorage
 
 			sw0.stop();
 
-                	version (dmd2_052)
-                    		long t0 = cast(long) sw0.peek().usecs;
-                	else
-                    		long t0 = cast(long) sw0.peek().microseconds;
+			version(dmd2_052)
+				long t0 = cast(long) sw0.peek().usecs;
+			else
+				long t0 = cast(long) sw0.peek().microseconds;
 
 			if(t0 > 100)
 			{
@@ -727,7 +726,7 @@ class TripleStorageMongoDB: TripleStorage
 								O = _value;
 
 								// проверим есть ли для этого триплета реифицированные данные
-								if(*type_of_getting_field == _GET_REIFED)
+								if(*type_of_getting_field == field.GET_REIFED)
 								{
 									Triple[]* vv = O in reif_triples;
 									if(vv !is null)
@@ -928,10 +927,10 @@ class TripleStorageMongoDB: TripleStorage
 			//			bson_destroy(&fields);
 
 			sw.stop();
-                version (dmd2_052)
-                    long t = cast(long) sw.peek().usecs;
-                else
-                    long t = cast(long) sw.peek().microseconds;
+			version(dmd2_052)
+				long t = cast(long) sw.peek().usecs;
+			else
+				long t = cast(long) sw.peek().microseconds;
 
 			if(t > 100 || trace_msg[0][20] == 1)
 			{

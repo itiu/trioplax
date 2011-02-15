@@ -4,6 +4,8 @@ private import trioplax.TripleStorage;
 private import trioplax.memory.ComplexKeys;
 private import trioplax.triple;
 
+private import std.stdio;
+
 class TripleStorageMemory: TripleStorage
 {
 	List[ThreeKeys] iSPO;
@@ -89,7 +91,7 @@ class TripleStorageMemory: TripleStorage
 		}
 
 		if(apnpdr !is null)
-			return apnpdr.lst.data;
+			return apnpdr;
 		else
 			return null;
 

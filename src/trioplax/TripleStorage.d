@@ -2,8 +2,12 @@ module trioplax.TripleStorage;
 
 private import trioplax.triple;
 
-public immutable byte _GET = 0;
-public immutable byte _GET_REIFED = 1;
+enum field: byte
+{
+ GET = 0,
+ GET_REIFED = 1
+}
+
 
 interface TripleStorage
 {
