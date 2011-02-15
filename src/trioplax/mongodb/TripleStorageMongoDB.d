@@ -14,6 +14,8 @@ private import trioplax.triple;
 private import trioplax.TripleStorage;
 private import trioplax.Logger;
 
+private import trioplax.memory.TripleStorageMemory;
+
 private import bson;
 private import md5;
 private import mongo;
@@ -22,9 +24,9 @@ Logger log;
 
 enum caching_type: byte
 {
- NONE = 0,	
- ALL_DATA = 1,
- QUERY_RESULT = 2
+	NONE = 0,
+	ALL_DATA = 1,
+	QUERY_RESULT = 2
 }
 
 static this()
@@ -61,8 +63,14 @@ class TripleStorageMongoDB: TripleStorage
 	int count_of_myCreatedString;
 	int max_of_myCreatedString = 200_000;
 
-	this(string host, int port, string collection, byte caching_strategy = caching_type.NONE)
+	TripleStorageMemory ts_mem;
+
+	byte caching_strategy;
+	
+	this(string host, int port, string collection, byte _caching_strategy = caching_type.NONE)
 	{
+		caching_strategy = _caching_strategy;
+		
 		multilang_predicates["swrc:name"] = true;
 		multilang_predicates["swrc:firstName"] = true;
 		multilang_predicates["swrc:lastName"] = true;
@@ -92,8 +100,32 @@ class TripleStorageMongoDB: TripleStorage
 			throw new Exception("failed to connect to mongodb");
 		}
 		log.trace("connect to mongodb sucessful");
+
+		init();
 	}
 
+	private void init()
+	{
+		if(caching_strategy == caching_type.ALL_DATA || caching_strategy == caching_type.QUERY_RESULT)
+		{
+			ts_mem = new TripleStorageMemory();
+
+			if(caching_strategy == caching_type.ALL_DATA)
+			{
+				// для этой стратегии кеширования, следует загрузить весь кеш, данными из mongodb
+
+				getTriples(null, null, null, &add_triple_to_cache);		
+			}
+
+		}
+	}
+
+	private void add_triple_to_cache(string S, string P, string O, ref List list)
+	{
+		writeln ("s=", S, ", p=", P, ", o=", O);
+	}
+
+	
 	public void set_cache()
 	{
 	}
@@ -177,6 +209,11 @@ class TripleStorageMongoDB: TripleStorage
 	}
 
 	public List getTriples(string s, string p, string o)
+	{
+		return getTriples(s, p, o, &add_triple_in_list);
+	}
+
+	public List getTriples(string s, string p, string o, void delegate(string S, string P, string O, ref List list) this_triple)
 	{
 		List list = new List();
 
@@ -273,7 +310,7 @@ class TripleStorageMongoDB: TripleStorage
 
 							if(ts !is null && tp !is null && to !is null)
 							{
-								add_triple_in_list(ts, tp, to, list);
+								this_triple(ts, tp, to, list);
 							}
 						}
 
@@ -288,7 +325,7 @@ class TripleStorageMongoDB: TripleStorage
 
 				if(ts !is null && tp !is null && to !is null)
 				{
-					add_triple_in_list(s, p, o, list);
+					this_triple(s, p, o, list);
 				}
 			}
 		}
