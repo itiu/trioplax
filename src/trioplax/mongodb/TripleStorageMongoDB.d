@@ -641,7 +641,7 @@ class TripleStorageMongoDB: TripleStorage
 
 	public List getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates)
 	{
-		if(ts_mem !is null && mask_triples.length == 1)
+		if(ts_mem !is null && mask_triples.length < 3)
 			return ts_mem.getTriplesOfMask(mask_triples, reading_predicates);
 
 		//		trace_msg[0] = 1;

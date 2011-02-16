@@ -34,7 +34,7 @@ class Triple
 		
 	string toString()
 	{
-		return S ~ " " ~ P ~ " " ~ O;
+		return "[" ~ S ~ "] [" ~ P ~ "] [" ~ O ~ "]";
 	}
 
 }

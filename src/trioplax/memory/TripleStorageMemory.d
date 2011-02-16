@@ -16,6 +16,11 @@ static this()
 
 class TripleStorageMemory: TripleStorage
 {
+	bool[TwoKeys] PPOO_list;
+	string[string] P1P2_for_PPOO;
+	string[string] P2P1_for_PPOO;
+
+	List[FourKeys] iPPOO;
 	List[ThreeKeys] iSPO;
 	List[TwoKeys] iSP;
 	List[TwoKeys] iPO;
@@ -26,7 +31,7 @@ class TripleStorageMemory: TripleStorage
 
 	public int addTriple(Triple tt)
 	{
-//		log.trace("add triple into mem: [%s] [%s] [%s]", tt.S, tt.P, tt.O);
+		//		log.trace("add triple into mem: [%s] [%s] [%s]", tt.S, tt.P, tt.O);
 
 		ThreeKeys spo = new ThreeKeys(tt.S, tt.P, tt.O);
 
@@ -61,7 +66,7 @@ class TripleStorageMemory: TripleStorage
 
 	public List getTriples(string _S, string _P, string _O)
 	{
-//		log.trace("#getTriples [%s] [%s] [%s]", _S, _P, _O);
+		//		log.trace("#getTriples [%s] [%s] [%s]", _S, _P, _O);
 
 		List apnpdr;
 
@@ -123,32 +128,121 @@ class TripleStorageMemory: TripleStorage
 
 	public List getTriplesOfMask(ref Triple[] triples, byte[char[]] reading_predicates)
 	{
-		List res = getTriples(triples[0].S, triples[0].P, triples[0].O);
+		List res = null;
+
+		// это двойной ключ PPOO ?
+		if(triples.length == 2)
+		{
+			log.trace("getTriplesOfMask > %s", triples);
+
+			// да
+			TwoKeys pp = new TwoKeys(triples[0].P, triples[1].P);
+			//	 проверить есть ли в списке заиндексированных двойных ключей
+			if((pp in PPOO_list) is null)
+			{
+				// нет, сохранить в списке этот ключ
+				PPOO_list[pp] = true;
+				// сохранить в списках позволяющих понять порядк P1P2 в индексе
+				P1P2_for_PPOO[triples[0].P] = triples[1].P;
+				P2P1_for_PPOO[triples[1].P] = triples[0].P;
+				// и произвести построение по нему индекса
+
+				//	перебор всех фактов из индекса iSPO и добавление требуемых в индекс PPOO
+				foreach(ol; iSPO.values)
+				{
+					Triple tt = ol.lst.data[0];
+
+					string P1;
+					string O1;
+					string P2;
+					string O2;
+
+					string* _P2;
+
+					// при добавлении нужно понять какой из P добавляется, P1 или P2
+					// нужно проверить есть ли недостающий факт для данного субьекта с предикатом PX
+					// если есть то можно добавлять в индекс 
+					// если такого факта не нашлось, то пропускаем добавление в iPPOO;													
+					if(_P2 !is null)
+					{
+						P2 = *_P2;
+						P1 = tt.P;
+						O1 = tt.O;
+
+						// нужно найти O2
+						List res1 = getTriples(tt.S, P2, null);
+
+						if(res1 !is null)
+							O2 = res1.lst.data[0].O;
+					}
+					else
+					{
+						string* _P1 = (tt.P in P1P2_for_PPOO);
+
+						if(_P1 !is null)
+						{
+							P1 = *_P1;
+							P2 = tt.P;
+							O2 = tt.O;
+
+							// нужно найти O1
+							List res1 = getTriples(tt.S, P1, null);
+
+							if(res1 !is null)
+								O1 = res1.lst.data[0].O;
+
+						}
+					}
+
+					if(P1 !is null && P2 !is null && O1 !is null && O2 !is null)
+					{
+						// можно добавлять в индекс
+						addIntoFourIndex (iPPOO, P1, P2, O1, O2, tt);
+					}
+
+				}
+				
+				log.trace ("in iPPOO %s", iPPOO.keys);
+			}
+			//   произвести поиск по этому индексу   
+			// ! нужно учитывать порядок P1P2
+			FourKeys key = new FourKeys(triples[0].P, triples[1].P, triples[0].O, triples[1].O);
+
+			res = iPPOO.get(key, res);
+		}
+
+		res = getTriples(triples[0].S, triples[0].P, triples[0].O);
 		List outl = new List;
 
 		// цикл по найденным субьектам
 		if(res !is null)
 		{
-//			log.trace("found=%s", res.lst.data);
-//			log.trace("reading_predicates=%s", reading_predicates);
+			//			log.trace("found=%s", res.lst.data);
+			//			log.trace("reading_predicates=%s", reading_predicates);
 
 			foreach(el; res.lst.data)
 			{
 				foreach(pp; reading_predicates.keys)
 				{
-					List res1 = getTriples(el.S, cast(immutable)pp, null);
+					//					log.trace("el=[%s], pp=%s", el, pp);
 
-//					log.trace("el=%s, pp=%s", el, pp);
+					List res1 = getTriples(el.S, cast(immutable) pp, null);
 
-					foreach(el1; res1.lst.data)
+					if(res1 !is null)
 					{
-						outl.lst.put(el1);
+						foreach(el1; res1.lst.data)
+						{
+							//							log.trace("el1=%s", el1);
+							outl.lst.put(el1);
+						}
 					}
 
 				}
 
 			}
 		}
+
+		log.trace("ok");
 
 		return outl;
 	}
@@ -200,6 +294,22 @@ class TripleStorageMemory: TripleStorage
 		writeln("iS.length=", iS.keys.length);
 		writeln("iP.length=", iP.keys.length);
 		writeln("iO.length=", iO.keys.length);
+	}
+
+	private void addIntoFourIndex(ref List[FourKeys] idx, string _key1, string _key2, string _key3, string _key4, Triple tt)
+	{
+		FourKeys xx = new FourKeys(_key1, _key2, _key3, _key4);
+
+		List apnpdr;
+		apnpdr = idx.get(xx, apnpdr);
+		if(apnpdr is null)
+		{
+			//                      writeln ("###");
+			apnpdr = new List;
+			idx[xx] = apnpdr;
+			//                      writeln ("iXX.length=", idx.keys.length);
+		}
+		apnpdr.lst.put(tt);
 	}
 
 	private void addIntoTwoIndex(ref List[TwoKeys] idx, string _key1, string _key2, Triple tt)
