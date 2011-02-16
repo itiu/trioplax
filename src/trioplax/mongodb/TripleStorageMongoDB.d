@@ -641,6 +641,9 @@ class TripleStorageMongoDB: TripleStorage
 
 	public List getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates)
 	{
+		if(ts_mem !is null && mask_triples.length == 1)
+			return ts_mem.getTriplesOfMask(mask_triples, reading_predicates);
+
 		//		trace_msg[0] = 1;
 		//trace_msg[0][5] = 1;
 		//		trace_msg[1][1] = 0;
@@ -746,7 +749,7 @@ class TripleStorageMongoDB: TripleStorage
 			else
 				long t0 = cast(long) sw0.peek().microseconds;
 
-			if(t0 > 100)
+			if(t0 > 500)
 			{
 				char[] ss = bson_to_string(&query);
 				log.trace("getTriplesOfMask:QUERY:\n %s", ss);
@@ -1011,7 +1014,7 @@ class TripleStorageMongoDB: TripleStorage
 			else
 				long t = cast(long) sw.peek().microseconds;
 
-			if(t > 100 || trace_msg[0][20] == 1)
+			if(t > 500 || trace_msg[0][20] == 1)
 			{
 				char[] ss = bson_to_string(&query);
 				log.trace("getTriplesOfMask:QUERY:\n %s", ss);

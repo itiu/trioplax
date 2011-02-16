@@ -26,7 +26,7 @@ class TripleStorageMemory: TripleStorage
 
 	public int addTriple(Triple tt)
 	{
-		log.trace ("add triple into mem: [%s] [%s] [%s]", tt.S, tt.P, tt.O);
+//		log.trace("add triple into mem: [%s] [%s] [%s]", tt.S, tt.P, tt.O);
 
 		ThreeKeys spo = new ThreeKeys(tt.S, tt.P, tt.O);
 
@@ -61,21 +61,21 @@ class TripleStorageMemory: TripleStorage
 
 	public List getTriples(string _S, string _P, string _O)
 	{
-		log.trace ("#getTriples [%s] [%s] [%s]", _S, _P, _O);
-		
+//		log.trace("#getTriples [%s] [%s] [%s]", _S, _P, _O);
+
 		List apnpdr;
 
 		if(_S !is null && _P !is null && _O !is null)
 		{
-//			log.trace ("#getTriples iSPO");
+			//			log.trace ("#getTriples iSPO");
 			ThreeKeys spo = new ThreeKeys(_S, _P, _O);
 
 			apnpdr = iSPO.get(spo, apnpdr);
-//			log.trace ("#getTriples iSPO ok");
-//			log.trace ("#getTriples apnpdr=%s", apnpdr);
-//			log.trace ("#getTriples apnpdr.lst=%s", apnpdr.lst);
-//			log.trace ("#getTriples apnpdr.lst.data=%s", apnpdr.lst.data);
-//			log.trace ("#getTriples apnpdr.lst.data.length=%d", apnpdr.lst.data.length);
+			//			log.trace ("#getTriples iSPO ok");
+			//			log.trace ("#getTriples apnpdr=%s", apnpdr);
+			//			log.trace ("#getTriples apnpdr.lst=%s", apnpdr.lst);
+			//			log.trace ("#getTriples apnpdr.lst.data=%s", apnpdr.lst.data);
+			//			log.trace ("#getTriples apnpdr.lst.data.length=%d", apnpdr.lst.data.length);
 		}
 		else if(_S !is null && _P !is null && _O is null)
 		{
@@ -97,13 +97,13 @@ class TripleStorageMemory: TripleStorage
 		}
 		else if(_S !is null && _P is null && _O is null)
 		{
-//			log.trace ("#getTriples iS");
+			//			log.trace ("#getTriples iS");
 			apnpdr = iS.get(_S, apnpdr);
-//			log.trace ("#getTriples iS ok");
-//			log.trace ("#getTriples apnpdr=%s", apnpdr);
-//			log.trace ("#getTriples apnpdr.lst=%s", apnpdr.lst);
-//			log.trace ("#getTriples apnpdr.lst.data=%s", apnpdr.lst.data);
-//			log.trace ("#getTriples apnpdr.lst.data.length=%d", apnpdr.lst.data.length);
+			//			log.trace ("#getTriples iS ok");
+			//			log.trace ("#getTriples apnpdr=%s", apnpdr);
+			//			log.trace ("#getTriples apnpdr.lst=%s", apnpdr.lst);
+			//			log.trace ("#getTriples apnpdr.lst.data=%s", apnpdr.lst.data);
+			//			log.trace ("#getTriples apnpdr.lst.data.length=%d", apnpdr.lst.data.length);
 		}
 		else if(_S is null && _P !is null && _O is null)
 		{
@@ -121,9 +121,36 @@ class TripleStorageMemory: TripleStorage
 
 	}
 
-	public List getTriplesOfMask(ref Triple[] triples, byte[char[]] read_predicates)
+	public List getTriplesOfMask(ref Triple[] triples, byte[char[]] reading_predicates)
 	{
-		return null;
+		List res = getTriples(triples[0].S, triples[0].P, triples[0].O);
+		List outl = new List;
+
+		// цикл по найденным субьектам
+		if(res !is null)
+		{
+//			log.trace("found=%s", res.lst.data);
+//			log.trace("reading_predicates=%s", reading_predicates);
+
+			foreach(el; res.lst.data)
+			{
+				foreach(pp; reading_predicates.keys)
+				{
+					List res1 = getTriples(el.S, cast(immutable)pp, null);
+
+//					log.trace("el=%s, pp=%s", el, pp);
+
+					foreach(el1; res1.lst.data)
+					{
+						outl.lst.put(el1);
+					}
+
+				}
+
+			}
+		}
+
+		return outl;
 	}
 
 	public bool isExistSubject(string subject)
@@ -195,17 +222,17 @@ class TripleStorageMemory: TripleStorage
 	private void addIntoOneIndex(ref List[string] idx, string _key1, Triple tt)
 	{
 		List apnpdr;
-		
-		char[] key = new char [_key1.length];
-		key[0..$] = _key1[0..$];
-		
-//		log.trace ("add into mem: key=%s", key);
-		
-		apnpdr = idx.get(cast(immutable)key, apnpdr);
+
+		char[] key = new char[_key1.length];
+		key[0 .. $] = _key1[0 .. $];
+
+		//		log.trace ("add into mem: key=%s", key);
+
+		apnpdr = idx.get(cast(immutable) key, apnpdr);
 		if(apnpdr is null)
 		{
 			apnpdr = new List;
-			idx[cast(immutable)key] = apnpdr;
+			idx[cast(immutable) key] = apnpdr;
 		}
 		apnpdr.lst.put(tt);
 	}
