@@ -256,8 +256,6 @@ class TripleStorageMongoDB: TripleStorage
 
 		total_count_queries++;
 
-		//		triple_list_element* list_in_cache = null;
-
 		bool f_is_query_stored = false;
 
 		bson_buffer bb, bb2;
@@ -305,7 +303,7 @@ class TripleStorageMongoDB: TripleStorage
 			string tp = null;
 			string to = null;
 
-			//			printf("GET TRIPLES #8\n");
+			//			log.trace("GET TRIPLES %s %s %s", s, p, o);
 
 			while(bson_iterator_next(&it))
 			{
@@ -319,29 +317,30 @@ class TripleStorageMongoDB: TripleStorage
 
 						string value = fromStringz(bson_iterator_string(&it));
 						//						log.trace(" value=[%s]", value);
+
+						tp = null;
+
+						if(name_key == "@")
 						{
+							//								writeln("ts = value");
+							ts = value;
+						}
+						else if(p !is null && name_key == p)
+						{
+							//								writeln("to = value");
+							tp = name_key;
+							to = value;
+						}
+						else if(p is null)
+						{
+							tp = name_key;
+							to = value;
+						}
 
-							if(name_key == "@")
-							{
-								//								writeln("ts = value");
-								ts = value;
-							}
-							else if(p !is null && name_key == p)
-							{
-								//								writeln("to = value");
-								tp = name_key;
-								to = value;
-							}
-							else if(p is null)
-							{
-								tp = name_key;
-								to = value;
-							}
-
-							if(ts !is null && tp !is null && to !is null)
-							{
-								this_triple(ts, tp, to, list);
-							}
+						if(ts !is null && tp !is null && to !is null)
+						{
+							//							log.trace("add to list 1 [%s][%s][%s]", ts, tp, to);
+							this_triple(ts, tp, to, list);
 						}
 
 					break;
@@ -356,6 +355,7 @@ class TripleStorageMongoDB: TripleStorage
 				if(ts !is null && tp !is null && to !is null)
 				{
 					this_triple(s, p, o, list);
+					//					log.trace("add to list 2 [%s][%s][%s]", ts, tp, to);
 				}
 			}
 		}

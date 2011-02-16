@@ -132,7 +132,7 @@ class TripleStorageMemory: TripleStorage
 
 		apnpdr = iS.get(subject, apnpdr);
 
-		if(apnpdr.lst.data.length > 0)
+		if(apnpdr !is null && apnpdr.lst.data.length > 0)
 			return true;
 
 		return false;
