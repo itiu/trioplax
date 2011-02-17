@@ -59,7 +59,7 @@ class TwoKeys
 
 	string toString()
 	{
-		return cast(immutable) (key1 ~ " " ~ key2);
+		return cast(immutable) ("{" ~ key1 ~ "}{" ~ key2 ~ "}");
 	}
 
 }
@@ -125,7 +125,7 @@ class ThreeKeys
 
 	string toString()
 	{
-		return cast(immutable) (key1 ~ " " ~ key2 ~ " " ~ key3);
+		return cast(immutable) ("{" ~ key1 ~ "}{" ~ key2 ~ "}{" ~ key3 ~ "}");
 	}
 
 }
@@ -196,6 +196,6 @@ class FourKeys
 
 	string toString()
 	{
-		return cast(immutable) (key1 ~ " " ~ key2 ~ " " ~ key3 ~ " " ~ key4);
+		return cast(immutable) ("{" ~ key1 ~ "}{" ~ key2 ~ "}{" ~ key3 ~ "}{" ~ key4 ~ "}");
 	}
 }

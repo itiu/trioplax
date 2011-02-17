@@ -16,11 +16,11 @@ static this()
 
 class TripleStorageMemory: TripleStorage
 {
-	bool[TwoKeys] PPOO_list;
-	string[string] P1P2_for_PPOO;
-	string[string] P2P1_for_PPOO;
+	bool[TwoKeys] POPO_list;
+	string[string] P1P2_for_POPO;
+	string[string] P2P1_for_POPO;
 
-	List[FourKeys] iPPOO;
+	List[FourKeys] iPOPO;
 	List[ThreeKeys] iSPO;
 	List[TwoKeys] iSP;
 	List[TwoKeys] iPO;
@@ -134,17 +134,20 @@ class TripleStorageMemory: TripleStorage
 		if(triples.length == 2)
 		{
 			log.trace("getTriplesOfMask > %s", triples);
+			log.trace("current POPO_list = %s", POPO_list);
 
 			// да
 			TwoKeys pp = new TwoKeys(triples[0].P, triples[1].P);
 			//	 проверить есть ли в списке заиндексированных двойных ключей
-			if((pp in PPOO_list) is null)
+			if((pp in POPO_list) is null)
 			{
+				log.trace("построим индекс для [%s][%s]", triples[0].P, triples[1].P);
+
 				// нет, сохранить в списке этот ключ
-				PPOO_list[pp] = true;
+				POPO_list[pp] = true;
 				// сохранить в списках позволяющих понять порядк P1P2 в индексе
-				P1P2_for_PPOO[triples[0].P] = triples[1].P;
-				P2P1_for_PPOO[triples[1].P] = triples[0].P;
+				P1P2_for_POPO[triples[0].P] = triples[1].P;
+				P2P1_for_POPO[triples[1].P] = triples[0].P;
 				// и произвести построение по нему индекса
 
 				//	перебор всех фактов из индекса iSPO и добавление требуемых в индекс PPOO
@@ -177,7 +180,7 @@ class TripleStorageMemory: TripleStorage
 					}
 					else
 					{
-						string* _P1 = (tt.P in P1P2_for_PPOO);
+						string* _P1 = (tt.P in P1P2_for_POPO);
 
 						if(_P1 !is null)
 						{
@@ -197,18 +200,19 @@ class TripleStorageMemory: TripleStorage
 					if(P1 !is null && P2 !is null && O1 !is null && O2 !is null)
 					{
 						// можно добавлять в индекс
-						addIntoFourIndex (iPPOO, P1, P2, O1, O2, tt);
+						// TODO исключить добавление в список одинаковых фактов
+						addIntoFourIndex(iPOPO, P1, O1, P2, O2, tt);
 					}
 
 				}
-				
-				log.trace ("in iPPOO %s", iPPOO.keys);
+
+				log.trace("in iPOPO: \n %s", iPOPO);
 			}
 			//   произвести поиск по этому индексу   
 			// ! нужно учитывать порядок P1P2
-			FourKeys key = new FourKeys(triples[0].P, triples[1].P, triples[0].O, triples[1].O);
+			FourKeys key = new FourKeys(triples[0].P, triples[0].O, triples[1].P, triples[1].O);
 
-			res = iPPOO.get(key, res);
+			res = iPOPO.get(key, res);
 		}
 
 		res = getTriples(triples[0].S, triples[0].P, triples[0].O);
