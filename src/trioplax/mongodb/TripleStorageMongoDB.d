@@ -115,6 +115,8 @@ class TripleStorageMongoDB: TripleStorage
 				// для этой стратегии кеширования, следует загрузить весь кеш, данными из mongodb
 
 				getTriples(null, null, null, &add_triple_to_cache);
+				
+				ts_mem._tmp_print_iSP ();
 			}
 
 		}
@@ -244,7 +246,6 @@ class TripleStorageMongoDB: TripleStorage
 			return getTriples(s, p, o, &add_triple_in_list);
 	}
 
-	// TODO не возвращает предикаты с множественными значениями
 	public List getTriples(string s, string p, string o, void delegate(string S, string P, string O, ref List list) this_triple)
 	{
 		List list = new List();
@@ -344,6 +345,39 @@ class TripleStorageMongoDB: TripleStorage
 						}
 
 					break;
+					
+					case bson_type.bson_array:
+					{
+						string _name_key = fromStringz(bson_iterator_key(&it));
+
+						if(_name_key != "@" && _name_key[0] != '_')
+						{
+//							log.trace("getTriples:_name_key:%s", _name_key);
+
+							char* val = bson_iterator_value(&it);
+
+							bson_iterator i_1;
+							bson_iterator_init(&i_1, val);
+
+							while(bson_iterator_next(&i_1))
+							{
+								switch(bson_iterator_type(&i_1))
+								{
+									case bson_type.bson_string:
+									{
+										string A_value = fromStringz(bson_iterator_string(&i_1));
+
+										this_triple(ts, _name_key, A_value, list);
+									}
+									default:
+									break;
+								}
+
+							}
+						}
+						break;
+					}
+
 					default:
 					break;
 				}
@@ -1076,7 +1110,7 @@ class TripleStorageMongoDB: TripleStorage
 		if(trace_msg[1][1] == 1)
 			log.trace("add_triple_in_list S:%s P:%s O:%s lang:%d", triple.S, triple.P, triple.O, triple.lang);
 
-		list.lst.put(triple);
+		list.put(triple);
 
 		if(trace_msg[1][2] == 1)
 			log.trace("add_triple_in_list return");
@@ -1088,7 +1122,7 @@ class TripleStorageMongoDB: TripleStorage
 		if(trace_msg[2][0] == 1)
 			log.trace("add_triple_in_list S:%s P:%s O:%s lang:%d", triple.S, triple.P, triple.O, triple.lang);
 
-		list.lst.put(triple);
+		list.put(triple);
 	}
 
 	string fromStringz(char* s)

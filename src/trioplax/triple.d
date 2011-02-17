@@ -11,15 +11,26 @@ public immutable byte _EN = 2;
 
 class List
 {
-	Appender!(Triple[]) lst;
+	bool[Triple] lst;
+	
+	Triple[] array ()
+	{
+		return lst.keys ();
+	}
+
+	void put (Triple tt)
+	{
+		lst[tt] = true;
+	}
 	
 	string toString()
-	{		
-		auto writer = appender!string();
+	{	
+		return "@@@";
+//		auto writer = appender!string();
 
-		formattedWrite(writer, "[%d]%s \n", lst.data.length, lst.data);
+//		formattedWrite(writer, "[%d]%s \n", array.length, array);
 		
-		return writer.data;
+//		return writer.data;
 	}
 }
 
@@ -37,9 +48,17 @@ class Triple
 	
 	this(string _S, string _P, string _O, byte _lang = _NONE)
 	{
-		S = _S;
-		P = _P;
-		O = _O;
+		S = cast(immutable)new char[_S.length];
+		P = cast(immutable)new char[_P.length];
+		O = cast(immutable)new char[_O.length];
+		
+		(cast(char[])S)[0..$] = _S[0..$];
+		(cast(char[])P)[0..$] = _P[0..$];
+		(cast(char[])O)[0..$] = _O[0..$];
+		
+//		S = _S;
+//		P = _P;
+//		O = _O;
 		lang = _lang;
 	}
 		
