@@ -15,19 +15,19 @@ static this()
 
 class TwoKeys
 {
-	char[] key1;
-	char[] key2;
+	string key1;
+	string key2;
 
 	this(string _key1, string _key2)
 	{
-		key1 = new char[_key1.length];
-		key2 = new char[_key2.length];
+		//		key1 = new char[_key1.length];
+		//		key2 = new char[_key2.length];
 
-		key1[0 .. $] = _key1[0 .. $];
-		key2[0 .. $] = _key2[0 .. $];
+		//		key1[0 .. $] = _key1[0 .. $];
+		//		key2[0 .. $] = _key2[0 .. $];
 
-		//		key1 = _key1;
-		//		key2 = _key2;
+		key1 = _key1;
+		key2 = _key2;
 	}
 
 	hash_t toHash()
@@ -66,23 +66,23 @@ class TwoKeys
 
 class ThreeKeys
 {
-	char[] key1;
-	char[] key2;
-	char[] key3;
+	string key1;
+	string key2;
+	string key3;
 
 	this(string _key1, string _key2, string _key3)
 	{
-		key1 = new char[_key1.length];
-		key2 = new char[_key2.length];
-		key3 = new char[_key3.length];
+		//		key1 = new char[_key1.length];
+		//		key2 = new char[_key2.length];
+		//		key3 = new char[_key3.length];
 
-		key1[0 .. $] = _key1[0 .. $];
-		key2[0 .. $] = _key2[0 .. $];
-		key3[0 .. $] = _key3[0 .. $];
+		//		key1[0 .. $] = _key1[0 .. $];
+		//		key2[0 .. $] = _key2[0 .. $];
+		//		key3[0 .. $] = _key3[0 .. $];
 
-		//		key1 = _key1;
-		//		key2 = _key2;
-		//		key3 = _key3;
+		key1 = _key1;
+		key2 = _key2;
+		key3 = _key3;
 	}
 
 	hash_t toHash()
@@ -132,27 +132,27 @@ class ThreeKeys
 
 class FourKeys
 {
-	char[] key1;
-	char[] key2;
-	char[] key3;
-	char[] key4;
+	string key1;
+	string key2;
+	string key3;
+	string key4;
 
 	this(string _key1, string _key2, string _key3, string _key4)
 	{
-		key1 = new char[_key1.length];
-		key2 = new char[_key2.length];
-		key3 = new char[_key3.length];
-		key4 = new char[_key4.length];
+		//		key1 = new char[_key1.length];
+		//		key2 = new char[_key2.length];
+		//		key3 = new char[_key3.length];
+		//		key4 = new char[_key4.length];
 
-		key1[0 .. $] = _key1[0 .. $];
-		key2[0 .. $] = _key2[0 .. $];
-		key3[0 .. $] = _key3[0 .. $];
-		key4[0 .. $] = _key4[0 .. $];
+		//		key1[0 .. $] = _key1[0 .. $];
+		//		key2[0 .. $] = _key2[0 .. $];
+		//		key3[0 .. $] = _key3[0 .. $];
+		//		key4[0 .. $] = _key4[0 .. $];
 
-		//		key1 = _key1;
-		//		key2 = _key2;
-		//		key3 = _key3;
-		//		key4 = _key4;
+		key1 = _key1;
+		key2 = _key2;
+		key3 = _key3;
+		key4 = _key4;
 	}
 
 	hash_t toHash()

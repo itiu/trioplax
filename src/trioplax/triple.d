@@ -4,6 +4,14 @@ import std.array;
 import std.stdio;
 import std.array: appender;
 private import std.format;
+private import trioplax.Logger;
+
+Logger log;
+
+static this()
+{
+	log = new Logger("trioplax.log", "");
+}
 
 public immutable byte _NONE = 0;
 public immutable byte _RU = 1;
@@ -25,13 +33,13 @@ class List
 	
 	string toString()
 	{	
-		return "@@@";
-//		auto writer = appender!string();
+//		return "@@@";
+		auto writer = appender!string();
 
-//		formattedWrite(writer, "[%d]%s \n", array.length, array);
+		formattedWrite(writer, "[%d]%s \n", array.length, array);
 		
-//		return writer.data;
-	}
+		return writer.data;
+	}	
 }
 
 class Triple
@@ -39,12 +47,9 @@ class Triple
 	string S;
 	string P;
 	string O;
+	int hhh;
 
 	byte lang;
-
-	this()
-	{
-	}	
 	
 	this(string _S, string _P, string _O, byte _lang = _NONE)
 	{
@@ -52,16 +57,23 @@ class Triple
 		P = cast(immutable)new char[_P.length];
 		O = cast(immutable)new char[_O.length];
 		
-		(cast(char[])S)[0..$] = _S[0..$];
-		(cast(char[])P)[0..$] = _P[0..$];
-		(cast(char[])O)[0..$] = _O[0..$];
+		(cast(char[])S)[] = _S[];
+		(cast(char[])P)[] = _P[];
+		(cast(char[])O)[] = _O[];
 		
 //		S = _S;
 //		P = _P;
 //		O = _O;
 		lang = _lang;
-	}
 		
+//		log.trace ("create triple %s", this);
+	}
+	
+	~this ()
+	{
+//		log.trace ("destroy triple %s", this);
+	}
+	
 	string toString()
 	{
 		string sS = S;
@@ -77,7 +89,12 @@ class Triple
 		if (sO is null)
 			sO = "";
 		
-		return "<" ~ S ~ "><" ~ P ~ "><" ~ O ~ ">";
+		auto writer = appender!string();
+
+		formattedWrite(writer, "%X %d %d<%s>%d<%s>%d<%s>", cast(void*)this, hhh, sS.length, sS, sP.length, sP, sO.length, sO);
+		
+		return writer.data;		
+//		return "<" ~ sS ~ ">"~sS.length~"<" ~ sP ~ "><" ~ sO ~ ">";
 	}
 
 }
