@@ -2,17 +2,7 @@ module trioplax.Logger;
 
 private import std.format;
 private import std.c.stdio;
-
-version(dmd2_052)
-{
-    private import std.datetime;
-}
-else
-{
-    private import std.datetime;
-    private import std.date;
-}
-//private import std.date;
+private import std.date;
 
 import std.array: appender;
 
@@ -24,6 +14,8 @@ import std.c.linux.linux;
 //{
 //	Logger log;
 //}
+
+byte trace_msg[10000];
 
 public class Logger
 {

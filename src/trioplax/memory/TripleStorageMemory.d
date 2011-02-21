@@ -8,12 +8,67 @@ private import trioplax.TripleStorage;
 private import trioplax.memory.ComplexKeys;
 private import trioplax.triple;
 private import trioplax.Logger;
+private import std.format;
 
 Logger log;
 
 static this()
 {
 	log = new Logger("trioplax.log", "");
+}
+
+class List
+{
+	bool[Triple] lst;
+
+	Triple[] array()
+	{
+		return lst.keys();
+	}
+
+	void put(Triple tt)
+	{
+		lst[tt] = true;
+	}
+
+	string toString()
+	{
+		auto writer = appender!string();
+
+		formattedWrite(writer, "[%d]%s \n", array.length, array);
+
+		return writer.data;
+	}
+}
+
+class TripleStorageMemoryIterator: TLIterator
+{
+	List list;
+	int current_position = 0;
+
+	this(List _list)
+	{
+		list = _list;
+	}
+
+	int opApply(int delegate(ref Triple) dg)
+	{
+		int result = 0;
+
+		for(int i = 0; i < list.lst.keys.length; i++)
+		{
+			result = dg(list.lst.keys[i]);
+			if(result)
+				break;
+		}
+		return result;
+	}
+
+    int length ()
+    {
+    	return 0;
+    }
+	
 }
 
 class TripleStorageMemory: TripleStorage
@@ -110,11 +165,11 @@ class TripleStorageMemory: TripleStorage
 	{
 	}
 
-	public List getTriples(string _S, string _P, string _O)
+	public TLIterator getTriples(string _S, string _P, string _O)
 	{
-//		StopWatch sw;
-//		sw.start();
-		
+		//		StopWatch sw;
+		//		sw.start();
+
 		//		log.trace("#getTriples [%s] [%s] [%s]", _S, _P, _O);
 
 		List apnpdr;
@@ -168,25 +223,25 @@ class TripleStorageMemory: TripleStorage
 			apnpdr = iO.get(_O, apnpdr);
 		}
 
-//		sw.stop();
-//		version(dmd2_052)
-//			long t = cast(long) sw.peek().usecs;
-//		else
-//			long t = cast(long) sw.peek().microseconds;
+		//		sw.stop();
+		//		version(dmd2_052)
+		//			long t = cast(long) sw.peek().usecs;
+		//		else
+		//			long t = cast(long) sw.peek().microseconds;
 
-//		if(t > 0)
-//		{
-//			log.trace("memory get triple: %s %s %s %d[µs]", _S, _P, _O, t);
-//		}
-		
+		//		if(t > 0)
+		//		{
+		//			log.trace("memory get triple: %s %s %s %d[µs]", _S, _P, _O, t);
+		//		}
+
 		if(apnpdr !is null)
-			return apnpdr;
+			return new  TripleStorageMemoryIterator (apnpdr);
 		else
 			return null;
 
 	}
 
-	public List getTriplesOfMask(ref Triple[] triples, byte[char[]] reading_predicates)
+	public TLIterator getTriplesOfMask(ref Triple[] triples, byte[char[]] reading_predicates)
 	{
 		StopWatch sw;
 		sw.start();
@@ -244,16 +299,16 @@ class TripleStorageMemory: TripleStorage
 						O1 = tt.O;
 
 						// нужно найти O2
-						List res1 = getTriples(tt.S, P2, null);
+//@@@						List res1 = getTriples(tt.S, P2, null);
 
-						if(res1 !is null)
-						{
+//@@@						if(res1 !is null)
+//@@@						{
 							//							log.trace("#A");
 							//							log.trace("P2 = %s", *_P2);
 
 							//							log.trace("1. res1 = %s", res1);
-							O2 = res1.array[0].O;
-						}
+//@@@							O2 = res1.array[0].O;
+//@@@						}
 					}
 					else
 					{
@@ -266,16 +321,16 @@ class TripleStorageMemory: TripleStorage
 							O2 = tt.O;
 
 							// нужно найти O1
-							List res1 = getTriples(tt.S, P1, null);
+//@@@							List res1 = getTriples(tt.S, P1, null);
 
-							if(res1 !is null)
-							{
+//@@@							if(res1 !is null)
+//@@@							{
 								//								log.trace("#B");
 								//								log.trace("P1 = %s", *_P1);
 								//								log.trace("2. res1 = %s", res1);
 
-								O1 = res1.array[0].O;
-							}
+//@@@								O1 = res1.array[0].O;
+//@@@							}
 
 						}
 					}
@@ -313,7 +368,7 @@ class TripleStorageMemory: TripleStorage
 		}
 		else
 		{
-			res = getTriples(triples[0].S, triples[0].P, triples[0].O);
+//@@@			res = getTriples(triples[0].S, triples[0].P, triples[0].O);
 		}
 
 		List outl = new List;
@@ -331,15 +386,15 @@ class TripleStorageMemory: TripleStorage
 				{
 					//					log.trace("el=[%s], pp=%s", el, pp);
 
-					List res1 = getTriples(el.S, cast(immutable) pp, null);
+//@@@					List res1 = getTriples(el.S, cast(immutable) pp, null);
 					//					log.trace("res1=%s", res1);
-					if(res1 !is null)
-					{
-						foreach(el1; res1.array)
-						{
-							outl.put(el1);
-						}
-					}
+//@@@					if(res1 !is null)
+//@@@					{
+//@@@						foreach(el1; res1.array)
+//@@@						{
+//@@@							outl.put(el1);
+//@@@						}
+//@@@					}
 
 				}
 
@@ -360,7 +415,7 @@ class TripleStorageMemory: TripleStorage
 			log.trace("memory get triples of mask: %s %d[µs]", triples, t);
 		}
 
-		return outl;
+		return null;
 	}
 
 	public bool isExistSubject(string subject)

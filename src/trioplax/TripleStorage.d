@@ -15,8 +15,8 @@ interface TripleStorage
 	public int addTriple(Triple tt);
 	public void addTripleToReifedData(Triple reif, string p, string o, byte lang);
 	
-	public List getTriples(string s, string p, string o);
-	public List getTriplesOfMask(ref Triple[] triples, byte[char[]] read_predicates);
+	public TLIterator getTriples(string s, string p, string o);
+	public TLIterator getTriplesOfMask(ref Triple[] triples, byte[char[]] read_predicates);
 	
 	public bool isExistSubject (string subject); 
 	
@@ -36,4 +36,10 @@ interface TripleStorage
 
 	////////////////////////////////////////	
 //	private void logging_query(char[] op, Triple [] mask, List list);	
+}
+
+interface TLIterator
+{	
+    int opApply(int delegate(ref Triple) dg);
+    int length ();
 }

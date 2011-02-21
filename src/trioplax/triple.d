@@ -1,8 +1,8 @@
 module trioplax.triple;
 
-import std.array;
-import std.stdio;
-import std.array: appender;
+private import std.array;
+private import std.stdio;
+private import std.array: appender;
 private import std.format;
 private import trioplax.Logger;
 
@@ -17,31 +17,6 @@ public immutable byte _NONE = 0;
 public immutable byte _RU = 1;
 public immutable byte _EN = 2;
 
-class List
-{
-	bool[Triple] lst;
-	
-	Triple[] array ()
-	{
-		return lst.keys ();
-	}
-
-	void put (Triple tt)
-	{
-		lst[tt] = true;
-	}
-	
-	string toString()
-	{	
-//		return "@@@";
-		auto writer = appender!string();
-
-		formattedWrite(writer, "[%d]%s \n", array.length, array);
-		
-		return writer.data;
-	}	
-}
-
 class Triple
 {
 	string S;
@@ -51,7 +26,18 @@ class Triple
 
 	byte lang;
 	
-	this(string _S, string _P, string _O, byte _lang = _NONE)
+	this(string _S, string _P, string _O)
+	{
+		S = cast(immutable)new char[_S.length];
+		P = cast(immutable)new char[_P.length];
+		O = cast(immutable)new char[_O.length];
+		
+		(cast(char[])S)[] = _S[];
+		(cast(char[])P)[] = _P[];
+		(cast(char[])O)[] = _O[];
+	}
+
+	this(string _S, string _P, string _O, byte _lang)
 	{
 		S = cast(immutable)new char[_S.length];
 		P = cast(immutable)new char[_P.length];
@@ -68,6 +54,7 @@ class Triple
 		
 //		log.trace ("create triple %s", this);
 	}
+
 	
 	~this ()
 	{
