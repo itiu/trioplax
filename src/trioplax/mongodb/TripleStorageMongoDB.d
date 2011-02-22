@@ -57,7 +57,7 @@ class TripleStorageMongoDBIterator: TLIterator
 	}
 
 	int opApply(int delegate(ref Triple) dg)
-	{
+	{		
 		int result = 0;
 
 		string S;
@@ -67,6 +67,9 @@ class TripleStorageMongoDBIterator: TLIterator
 		Triple[][char[]] reif_triples;
 		int count_of_reifed_data = 0;
 
+		if(trace_msg[1007] == 1)
+			log.trace("TripleStorageMongoDBIterator:reading_predicates %s", reading_predicates);
+		
 		while(mongo_cursor_next(cursor))
 		{
 			bson_iterator it;
@@ -974,7 +977,7 @@ class TripleStorageMongoDB: TripleStorage
 				log.trace("getTripleOfMask: mongo_find: %d[µs]", t0);
 			}
 
-			TLIterator it = new TripleStorageMongoDBIterator(cursor);
+			TLIterator it = new TripleStorageMongoDBIterator(cursor, reading_predicates);
 
 			bson_destroy(&query);
 
