@@ -364,6 +364,8 @@ class TripleStorageMongoDB: TripleStorage
 	private int max_use_pull = 0;
 
 	private bool[char[]] predicate_as_multiple;
+	private bool[char[]] multilang_predicates;
+	private bool[char[]] fulltext_indexed_predicates;
 
 	private bool log_query = false;
 
@@ -392,6 +394,15 @@ class TripleStorageMongoDB: TripleStorage
 		multilang_predicates["docs19:position"] = true;
 
 		predicate_as_multiple["rdfs:subClassOf"] = true;
+		
+		fulltext_indexed_predicates["swrc:name"] = true;
+		fulltext_indexed_predicates["swrc:firstName"] = true;
+		fulltext_indexed_predicates["swrc:lastName"] = true;
+		fulltext_indexed_predicates["gost19:middleName"] = true;
+		fulltext_indexed_predicates["docs19:position"] = true;
+		fulltext_indexed_predicates["rdfs:label"] = true;		
+		fulltext_indexed_predicates["swrc:email"] = true;
+		fulltext_indexed_predicates["swrc:phone"] = true;
 
 		myCreatedString = new char[][max_of_myCreatedString];
 		count_of_myCreatedString = 0;
@@ -725,6 +736,7 @@ class TripleStorageMongoDB: TripleStorage
 
 		// добавим данные для полнотекстового поиска
 
+		if((tt.P in fulltext_indexed_predicates) !is null)
 		{
 			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
 
@@ -780,8 +792,6 @@ class TripleStorageMongoDB: TripleStorage
 		//			log.trace("used list of query {}", values[i]);
 		//		}
 	}
-
-	bool[char[]] multilang_predicates;
 
 	private void add_fulltext_to_query(string fulltext_param, bson_buffer* bb)
 	{
