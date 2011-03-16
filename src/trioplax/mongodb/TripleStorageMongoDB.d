@@ -391,6 +391,8 @@ class TripleStorageMongoDB: TripleStorage
 		multilang_predicates["gost19:middleName"] = true;
 		multilang_predicates["docs19:position"] = true;
 
+		predicate_as_multiple["rdfs:subClassOf"] = true;
+
 		myCreatedString = new char[][max_of_myCreatedString];
 		count_of_myCreatedString = 0;
 
