@@ -170,6 +170,16 @@ class TripleStorageMongoDBIterator: TLIterator
 							if(trace_msg[1012] == 1)
 								log.trace("TripleStorageMongoDBIterator:array:_name_key:%s", _name_key);
 
+							// если не указанны требуемые предикаты, то берем какие были считанны
+							byte* type_of_getting_field = null;
+							if(reading_predicates.length > 0)
+							{
+								type_of_getting_field = (_name_key in reading_predicates);
+	
+								if(type_of_getting_field is null)
+									break;
+							}
+
 							char* val = bson_iterator_value(&it);
 
 							bson_iterator i_1;
