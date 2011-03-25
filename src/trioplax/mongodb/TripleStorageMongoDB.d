@@ -404,6 +404,7 @@ class TripleStorageMongoDB: TripleStorage
 		multilang_predicates["docs19:position"] = true;
 
 		predicate_as_multiple["rdfs:subClassOf"] = true;
+		predicate_as_multiple["owl:hasValue"] = true;
 		
 		fulltext_indexed_predicates["swrc:name"] = true;
 		fulltext_indexed_predicates["swrc:firstName"] = true;
