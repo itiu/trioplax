@@ -403,8 +403,10 @@ class TripleStorageMongoDB: TripleStorage
 		multilang_predicates["gost19:middleName"] = true;
 		multilang_predicates["docs19:position"] = true;
 
+		predicate_as_multiple["a"] = true;
+		predicate_as_multiple["rdf:type"] = true;
 		predicate_as_multiple["rdfs:subClassOf"] = true;
-		predicate_as_multiple["owl:hasValue"] = true;
+		predicate_as_multiple["gost19:take"] = true;
 		
 		fulltext_indexed_predicates["swrc:name"] = true;
 		fulltext_indexed_predicates["swrc:firstName"] = true;
