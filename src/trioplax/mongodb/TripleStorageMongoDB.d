@@ -211,6 +211,16 @@ class TripleStorageMongoDBIterator: TLIterator
 					{
 						string _name_key = fromStringz(bson_iterator_key(&it));
 
+						// если не указанны требуемые предикаты, то берем какие были считанны
+						byte* type_of_getting_field = null;
+						if(reading_predicates.length > 0)
+						{
+							type_of_getting_field = (_name_key in reading_predicates);
+
+							if(type_of_getting_field is null)
+								break;
+						}
+
 						if(_name_key[0] == '_' && _name_key[1] == 'r' && _name_key[2] == 'e' && _name_key[3] == 'i')
 						{
 							count_of_reifed_data++;
