@@ -234,6 +234,8 @@ class TripleStorageMongoDBIterator: TLIterator
 							reifed_data_subj[5] = '_';
 
 							Integer.format(reifed_data_subj, count_of_reifed_data, cast(char[]) "X2");
+							
+							log.trace("TripleStorageMongoDBIterator: # <, count_of_reifed_data=%d", count_of_reifed_data);
 
 							// это реифицированные данные, восстановим факты его образующие
 							// добавим в список:
@@ -268,6 +270,8 @@ class TripleStorageMongoDBIterator: TLIterator
 
 										bson_iterator i_L2;
 										bson_iterator_init(&i_L2, val_L2);
+										
+										log.trace("TripleStorageMongoDBIterator: # {");
 
 										while(bson_iterator_next(&i_L2))
 										{
@@ -275,7 +279,7 @@ class TripleStorageMongoDBIterator: TLIterator
 											{
 												case bson_type.bson_string:
 												{
-													if(last_r_triples > r_triples.length)
+													if(last_r_triples >= r_triples.length)
 														r_triples.length += 50;
 
 													string _name_key_L2 = fromStringz(bson_iterator_key(&i_L2));
@@ -293,9 +297,10 @@ class TripleStorageMongoDBIterator: TLIterator
 													//	r_triple.O = _name_val_L2;
 													//	r_triple.S = cast(immutable) reifed_data_subj;
 
-													Triple r_triple = new Triple(cast(immutable) reifed_data_subj, _name_key_L2,
-															_name_val_L2);
+													Triple r_triple = new Triple(cast(immutable) reifed_data_subj, _name_key_L2, _name_val_L2);
+													
 													r_triples[last_r_triples] = r_triple;
+														
 													last_r_triples++;
 													break;
 												}
@@ -304,9 +309,21 @@ class TripleStorageMongoDBIterator: TLIterator
 												break;
 											}
 										}
+										
+										log.trace("TripleStorageMongoDBIterator: # }");
 
 										r_triples.length = last_r_triples;
+										
+											log.trace("TripleStorageMongoDBIterator: #9 last_r_triples=%d, _name_key_L1=[%s]", last_r_triples, cast(immutable) _name_key_L1);
+											
+											if (reif_triples is null)
+											log.trace("TripleStorageMongoDBIterator: reif_triples is null");
+											
+											
+											
 										reif_triples[cast(immutable) _name_key_L1] = r_triples;
+										
+										log.trace("TripleStorageMongoDBIterator: #10");
 
 										break;
 									}
@@ -329,6 +346,8 @@ class TripleStorageMongoDBIterator: TLIterator
 								}
 
 							}
+							
+										log.trace("TripleStorageMongoDBIterator: # >");
 
 						}
 
