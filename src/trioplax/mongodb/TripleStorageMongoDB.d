@@ -38,6 +38,9 @@ class TripleStorageMongoDBIterator: TLIterator
 {
 	mongo_cursor* cursor;
 	byte[char[]] reading_predicates;
+	bool is_query_all_predicates = false;
+	bool is_get_all = false;
+	bool is_get_all_reifed = false;
 
 	this(mongo_cursor* _cursor)
 	{
@@ -48,6 +51,27 @@ class TripleStorageMongoDBIterator: TLIterator
 	{
 		cursor = _cursor;
 		reading_predicates = _reading_predicates;
+
+		if (reading_predicates.length > 0)
+		{
+			byte* type_of_getting_field = ("query:all_predicates" in reading_predicates);
+		
+			if(type_of_getting_field !is null)
+			{
+				is_query_all_predicates = true;
+				if (*type_of_getting_field == field.GET)
+				{
+					is_get_all = true;
+				}
+				else if (*type_of_getting_field == field.GET_REIFED)
+				{
+					is_get_all_reifed = true;
+				}
+
+				
+			}
+		}	
+
 	}
 
 	~this()
@@ -93,7 +117,7 @@ class TripleStorageMongoDBIterator: TLIterator
 
 						// если не указанны требуемые предикаты, то берем какие были считанны
 						byte* type_of_getting_field = null;
-						if(reading_predicates.length > 0)
+						if(is_query_all_predicates == false && reading_predicates.length > 0)
 						{
 							type_of_getting_field = (_name_key in reading_predicates);
 
@@ -116,7 +140,7 @@ class TripleStorageMongoDBIterator: TLIterator
 							O = _value;
 
 							// проверим есть ли для этого триплета реифицированные данные
-							if(type_of_getting_field !is null && *type_of_getting_field == field.GET_REIFED)
+							if(is_get_all_reifed == true || type_of_getting_field !is null && *type_of_getting_field == field.GET_REIFED)
 							{
 								Triple[]* vv = O in reif_triples;
 								if(vv !is null)
@@ -172,7 +196,7 @@ class TripleStorageMongoDBIterator: TLIterator
 
 							// если не указанны требуемые предикаты, то берем какие были считанны
 							byte* type_of_getting_field = null;
-							if(reading_predicates.length > 0)
+							if(is_query_all_predicates == false && reading_predicates.length > 0)
 							{
 								type_of_getting_field = (_name_key in reading_predicates);
 	
@@ -213,7 +237,7 @@ class TripleStorageMongoDBIterator: TLIterator
 
 						// если не указанны требуемые предикаты, то берем какие были считанны
 						byte* type_of_getting_field = null;
-						if(reading_predicates.length > 0)
+						if(is_query_all_predicates == false && reading_predicates.length > 0)
 						{
 							type_of_getting_field = (_name_key in reading_predicates);
 
@@ -223,19 +247,6 @@ class TripleStorageMongoDBIterator: TLIterator
 
 						if(_name_key[0] == '_' && _name_key[1] == 'r' && _name_key[2] == 'e' && _name_key[3] == 'i')
 						{
-							count_of_reifed_data++;
-
-							char[] reifed_data_subj = new char[6];
-							reifed_data_subj[0] = '_';
-							reifed_data_subj[1] = ':';
-							reifed_data_subj[2] = 'R';
-							reifed_data_subj[3] = '_';
-							reifed_data_subj[4] = '_';
-							reifed_data_subj[5] = '_';
-
-							Integer.format(reifed_data_subj, count_of_reifed_data, cast(char[]) "X2");
-							
-							log.trace("TripleStorageMongoDBIterator: # <, count_of_reifed_data=%d", count_of_reifed_data);
 
 							// это реифицированные данные, восстановим факты его образующие
 							// добавим в список:
@@ -256,6 +267,19 @@ class TripleStorageMongoDBIterator: TLIterator
 
 							while(bson_iterator_next(&i_L1))
 							{
+								count_of_reifed_data++; //???
+	
+								char[] reifed_data_subj = new char[6];
+								reifed_data_subj[0] = '_';
+								reifed_data_subj[1] = ':';
+								reifed_data_subj[2] = 'R';
+								reifed_data_subj[3] = '_';
+								reifed_data_subj[4] = '_';
+								reifed_data_subj[5] = '_';
+	
+								Integer.format(reifed_data_subj, count_of_reifed_data, cast(char[]) "X2");
+								
+								log.trace("TripleStorageMongoDBIterator: # <, count_of_reifed_data=%d", count_of_reifed_data);
 
 								switch(bson_iterator_type(&i_L1))
 								{
