@@ -15,6 +15,7 @@ private import trioplax.TripleStorage;
 private import trioplax.Logger;
 
 private import trioplax.memory.TripleStorageMemory;
+private import trioplax.memory.ComplexKeys;
 
 private import bson;
 private import md5;
@@ -88,7 +89,7 @@ class TripleStorageMongoDBIterator: TLIterator
 		string P;
 		string O;
 
-		Triple[][char[]] reif_triples;
+		Triple[][ThreeKeys] reif_triples;
 		int count_of_reifed_data = 0;
 
 		if(trace_msg[1007] == 1)
@@ -112,6 +113,7 @@ class TripleStorageMongoDBIterator: TLIterator
 					case bson_type.bson_string:
 					{
 						string _name_key = fromStringz(bson_iterator_key(&it));
+						
 						if(trace_msg[1008] == 1)
 							log.trace("TripleStorageMongoDBIterator:string:_name_key:%s", _name_key);
 
@@ -139,25 +141,36 @@ class TripleStorageMongoDBIterator: TLIterator
 							P = _name_key;
 							O = _value;
 
+							Triple tt000 = new Triple(S, P, O);
+														
+							result = dg(tt000);
+							if(result)
+								return -1;
+							
 							// проверим есть ли для этого триплета реифицированные данные
 							if(is_get_all_reifed == true || type_of_getting_field !is null && *type_of_getting_field == field.GET_REIFED)
 							{
-								Triple[]* vv = O in reif_triples;
+								ThreeKeys t3 = new ThreeKeys (S, P, O); 
+								
+								Triple[]* vv = t3 in reif_triples;
 								if(vv !is null)
 								{
 									Triple[] r1_reif_triples = *vv;
 
 									Triple tt0 = new Triple(r1_reif_triples[0].S, "rdf:Subject", S);
+									
 									result = dg(tt0);
 									if(result)
 										return 1;
 
 									tt0 = new Triple(r1_reif_triples[0].S, "rdf:Predicate", P);
+
 									result = dg(tt0);
 									if(result)
 										return 1;
 
 									tt0 = new Triple(r1_reif_triples[0].S, "rdf:Object", O);
+
 									result = dg(tt0);
 									if(result)
 										return 1;
@@ -166,7 +179,7 @@ class TripleStorageMongoDBIterator: TLIterator
 									{
 										// можно добавлять в список
 										if(trace_msg[1010] == 1)
-											log.trace("TripleStorageMongoDBIterator:можно добавлять в список :", tt.O);
+											log.trace("reif : %s", tt);
 
 										result = dg(tt);
 										if(result)
@@ -174,11 +187,7 @@ class TripleStorageMongoDBIterator: TLIterator
 									}
 								}
 							}
-
-							Triple tt0 = new Triple(S, P, O);
-							result = dg(tt0);
-							if(result)
-								return -1;
+							
 
 						}
 
@@ -247,7 +256,9 @@ class TripleStorageMongoDBIterator: TLIterator
 
 						if(_name_key[0] == '_' && _name_key[1] == 'r' && _name_key[2] == 'e' && _name_key[3] == 'i')
 						{
-
+							string s_reif_parent_triple = S; 
+							string p_reif_parent_triple = _name_key[6..$]; 
+							     
 							// это реифицированные данные, восстановим факты его образующие
 							// добавим в список:
 							//	_new_node_uid a fdr:Statement
@@ -258,8 +269,8 @@ class TripleStorageMongoDBIterator: TLIterator
 							Triple[] r_triples = new Triple[10];
 							int last_r_triples = 0;
 
-							if(trace_msg[1013] == 1)
-								log.trace("TripleStorageMongoDBIterator:REIFFF _name_key:%s", _name_key);
+//							if(trace_msg[1013] == 1)
+//								log.trace("TripleStorageMongoDBIterator:REIFFF _name_key:%s", _name_key);
 
 							char* val = bson_iterator_value(&it);
 							bson_iterator i_L1;
@@ -267,35 +278,40 @@ class TripleStorageMongoDBIterator: TLIterator
 
 							while(bson_iterator_next(&i_L1))
 							{
-								count_of_reifed_data++; //???
-	
-								char[] reifed_data_subj = new char[6];
-								reifed_data_subj[0] = '_';
-								reifed_data_subj[1] = ':';
-								reifed_data_subj[2] = 'R';
-								reifed_data_subj[3] = '_';
-								reifed_data_subj[4] = '_';
-								reifed_data_subj[5] = '_';
-	
-								Integer.format(reifed_data_subj, count_of_reifed_data, cast(char[]) "X2");
-								
-								log.trace("TripleStorageMongoDBIterator: # <, count_of_reifed_data=%d", count_of_reifed_data);
-
 								switch(bson_iterator_type(&i_L1))
 								{
 
 									case bson_type.bson_object:
 									{
+										count_of_reifed_data++; //???
+										
+										char[] reifed_data_subj = new char[7];
+										reifed_data_subj[0] = '_';
+										reifed_data_subj[1] = ':';
+										reifed_data_subj[2] = 'R';
+										reifed_data_subj[3] = '_';
+										reifed_data_subj[4] = '_';
+										reifed_data_subj[5] = '_';
+										reifed_data_subj[6] = 0;
+			
+										Integer.format(reifed_data_subj, count_of_reifed_data, cast(char[]) "X2");
+										
+//										log.trace("TripleStorageMongoDBIterator: # <, count_of_reifed_data=%s", reifed_data_subj);										
+										
 										string _name_key_L1 = fromStringz(bson_iterator_key(&i_L1));
-										if(trace_msg[1014] == 1)
-											log.trace("TripleStorageMongoDBIterator:_name_key_L1 %s", _name_key_L1);
+										string o_reif_parent_triple = _name_key_L1; 
+
+										//										if(trace_msg[1014] == 1)
+//											log.trace("TripleStorageMongoDBIterator:_name_key_L1 %s", _name_key_L1);
 
 										char* val_L2 = bson_iterator_value(&i_L1);
+										
+//										log.trace("TripleStorageMongoDBIterator: val_L2 %s", fromStringz(val_L2));
 
 										bson_iterator i_L2;
 										bson_iterator_init(&i_L2, val_L2);
 										
-										log.trace("TripleStorageMongoDBIterator: # {");
+//										log.trace("TripleStorageMongoDBIterator: # {");
 
 										while(bson_iterator_next(&i_L2))
 										{
@@ -308,20 +324,21 @@ class TripleStorageMongoDBIterator: TLIterator
 
 													string _name_key_L2 = fromStringz(bson_iterator_key(&i_L2));
 
-													if(trace_msg[1015] == 1)
-														log.trace("TripleStorageMongoDBIterator:_name_key_L2=%s", _name_key_L2);
+//													if(trace_msg[1015] == 1)
+//														log.trace("TripleStorageMongoDBIterator:_name_key_L2=%s", _name_key_L2);
 
 													//	r_triple.P = _name_key_L2;
 
 													string _name_val_L2 = fromStringz(bson_iterator_string(&i_L2));
 
-													if(trace_msg[1016] == 1)
-														log.trace("TripleStorageMongoDBIterator:_name_val_L2L=%s", _name_val_L2);
+//													if(trace_msg[1016] == 1)
+//														log.trace("TripleStorageMongoDBIterator:_name_val_L2L=%s", _name_val_L2);
 
 													//	r_triple.O = _name_val_L2;
 													//	r_triple.S = cast(immutable) reifed_data_subj;
 
 													Triple r_triple = new Triple(cast(immutable) reifed_data_subj, _name_key_L2, _name_val_L2);
+//													log.trace("++ triple %s", r_triple);
 													
 													r_triples[last_r_triples] = r_triple;
 														
@@ -334,20 +351,19 @@ class TripleStorageMongoDBIterator: TLIterator
 											}
 										}
 										
-										log.trace("TripleStorageMongoDBIterator: # }");
+//										log.trace("TripleStorageMongoDBIterator: # }");
 
 										r_triples.length = last_r_triples;
 										
-											log.trace("TripleStorageMongoDBIterator: #9 last_r_triples=%d, _name_key_L1=[%s]", last_r_triples, cast(immutable) _name_key_L1);
+//										log.trace("TripleStorageMongoDBIterator: #9 last_r_triples=%d, _name_key_L1=[%s]", last_r_triples, cast(immutable) _name_key_L1);
 											
-											if (reif_triples is null)
-											log.trace("TripleStorageMongoDBIterator: reif_triples is null");
+//										if (reif_triples is null)
+//											log.trace("TripleStorageMongoDBIterator: reif_triples is null");																					
 											
-											
-											
-										reif_triples[cast(immutable) _name_key_L1] = r_triples;
+										ThreeKeys reifed_composite_key = new ThreeKeys(s_reif_parent_triple, p_reif_parent_triple, o_reif_parent_triple);
+										reif_triples[reifed_composite_key] = r_triples;
 										
-										log.trace("TripleStorageMongoDBIterator: #10");
+//										log.trace("TripleStorageMongoDBIterator: #10 reifed_composite_key=%s", reifed_composite_key);
 
 										break;
 									}
@@ -371,7 +387,7 @@ class TripleStorageMongoDBIterator: TLIterator
 
 							}
 							
-										log.trace("TripleStorageMongoDBIterator: # >");
+//							log.trace("TripleStorageMongoDBIterator: # >");
 
 						}
 
@@ -383,7 +399,7 @@ class TripleStorageMongoDBIterator: TLIterator
 							if(trace_msg[1019] == 1)
 							{
 								string _name_key = fromStringz(bson_iterator_key(&it));
-								log.trace("TripleStorageMongoDBIterator:def:_name_key:", _name_key);
+//								log.trace("TripleStorageMongoDBIterator:def:_name_key:", _name_key);
 							}
 						}
 					break;
