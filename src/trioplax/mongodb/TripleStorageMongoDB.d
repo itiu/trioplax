@@ -1,3 +1,5 @@
+// TODO Batch insert/update
+
 module trioplax.mongodb.TripleStorageMongoDB;
 
 private import std.string;
@@ -609,6 +611,7 @@ class TripleStorageMongoDB: TripleStorage
 		bson_buffer bb, bb2;
 		bson query;
 		bson fields;
+		bson out_data;
 
 		{
 			bson_buffer_init(&bb2);
@@ -623,15 +626,17 @@ class TripleStorageMongoDB: TripleStorage
 			bson_from_buffer(&fields, &bb2);
 		}
 
-		mongo_cursor* cursor = null;
-		cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
+//		mongo_cursor* cursor = null;
+//		cursor = mongo_find_one(&conn, ns, &query, &fields, &bb);//, 0, 0, 0);
 
-		if(mongo_cursor_next(cursor))
-		{
+//		if(mongo_cursor_next(cursor))
+//		{
+//			res = true;
+//		}
+		if (mongo_find_one(&conn, ns, &query, &fields, &out_data) > 0)
 			res = true;
-		}
 
-		mongo_cursor_destroy(cursor);
+//		mongo_cursor_destroy(cursor);
 		bson_destroy(&fields);
 		bson_destroy(&query);
 
@@ -641,7 +646,7 @@ class TripleStorageMongoDB: TripleStorage
 		else
 			long t = cast(long) sw.peek().microseconds;
 
-		if(t > 500)
+		if(t > 50000)
 		{
 			log.trace("isExistSubject [%s], total time: %d[µs]", subject, t);
 		}
@@ -815,30 +820,70 @@ class TripleStorageMongoDB: TripleStorage
 
 			bson_append_finish_object(sub);
 		}
+		bson_from_buffer(&op, &bb);
+//		log.trace ("query FT %s", bson_to_string (&op));
+		mongo_update(&conn, ns, &cond, &op, 1);
 
 		// добавим данные для полнотекстового поиска
 
+		char[][] aaa;
+		
 		if((tt.P in fulltext_indexed_predicates) !is null)
 		{
+			bson_buffer_init(&bb);
 			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
 
-			string l_o = tolower(tt.O);
+//			bson_buffer* sub1 = bson_append_start_object(sub, "_keywords");
+			
+			
+			
+//			bson_buffer* sub2 = bson_append_start_array(sub1, cast(char*) "$each");			
 
-			if(tt.lang == _NONE)
-				bson_append_stringA(sub, cast(char[]) "_keywords", cast(char[]) l_o);
-			else if(tt.lang == _RU)
-				bson_append_stringA(sub, cast(char[]) "_keywords", cast(char[]) l_o ~ "@ru");
-			if(tt.lang == _EN)
-				bson_append_stringA(sub, cast(char[]) "_keywords", cast(char[]) l_o ~ "@en");
-
+			char[] l_o = cast(char[])tolower(tt.O);
+			bson_append_stringA(sub, cast(char[])"_keywords", l_o);
 			bson_append_finish_object(sub);
-		}
+			bson_from_buffer(&op, &bb);
+			mongo_update(&conn, ns, &cond, &op, 1);
+			
+			for (int ic = 0; ic < l_o.length; ic++)
+			{
+				if (l_o[ic] == '"' || l_o[ic] == '\'' || l_o[ic] == '@' || l_o[ic] == '\'' || l_o[ic] == '\\' || l_o[ic] == '.' || l_o[ic] == '+')   
+					l_o[ic] = ' ';
+			}
 
-		bson_from_buffer(&op, &bb);
+			aaa = split(l_o, " ");
+			
+			bson_buffer_init(&bb);
+			sub = bson_append_start_object(&bb, "$addToSet");
+			bson_buffer* sub1 = bson_append_start_object(sub, "_keywords");
+			bson_buffer* sub2 = bson_append_start_array(sub, cast(char*) "$each");
+			
+			foreach (aa; aaa)
+			{
+				if (aa.length > 2)
+				{
+//					bson_append_stringA(sub, cast(char[])"_keywords", aa);
+					bson_append_stringA(sub, null, aa);
+				}
+			}
+			
+			bson_append_finish_object(sub2);
+			bson_append_finish_object(sub1);
+			bson_append_finish_object(sub);
+			bson_from_buffer(&op, &bb);
+			mongo_update(&conn, ns, &cond, &op, 1);
+			
+//			bson_append_finish_object(sub2);
+//			bson_append_finish_object(sub1);
+//			bson_append_finish_object(sub);
+		}
+		
+//		bson_from_buffer(&op, &bb);
+//		log.trace ("query FT %s", bson_to_string (&op));
+//		mongo_update(&conn, ns, &cond, &op, 1);
 
 		//		Thread.getThis().sleep(100_000);
 
-		mongo_update(&conn, ns, &cond, &op, 1);
 
 		bson_destroy(&cond);
 		bson_destroy(&op);
@@ -884,7 +929,7 @@ class TripleStorageMongoDB: TripleStorage
 		string[] values = split(fulltext_param, ",");
 		foreach(val; values)
 		{
-			bson_append_regexA(sub1, null, cast(char[]) val, null);
+			bson_append_regexA(sub1, null, cast(char[]) val, cast(char[])"imx");
 		}
 
 		bson_append_finish_object(sub1);
@@ -1205,9 +1250,15 @@ void bson_raw_to_string(char* data, int depth, OutBuffer outbuff)
 			//				printf("%s", oidhex);
 			//			break; //@@@ cast (char*)&oidhex)
 			case bson_type.bson_object:
-			case bson_type.bson_array:
-				outbuff.write(cast(char[]) "\n");
+				outbuff.write(cast(char[]) "\n{");
 				bson_raw_to_string(bson_iterator_value(&i), depth + 1, outbuff);
+				outbuff.write(cast(char[]) "\n}");
+			break;
+			
+			case bson_type.bson_array:
+				outbuff.write(cast(char[]) "\n[");
+				bson_raw_to_string(bson_iterator_value(&i), depth + 1, outbuff);
+				outbuff.write(cast(char[]) "\n]");
 			break;
 			//			default:
 			//				fprintf(stderr, "can't print type : %d\n", t);
