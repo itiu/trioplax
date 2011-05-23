@@ -224,7 +224,7 @@ class TripleStorageMemory: TripleStorage
 		}
 
 		//		sw.stop();
-		//		version(dmd2_052)
+		//		version(dmd2_053)
 		//			long t = cast(long) sw.peek().usecs;
 		//		else
 		//			long t = cast(long) sw.peek().microseconds;
@@ -405,7 +405,7 @@ class TripleStorageMemory: TripleStorage
 		//		log.trace("ok");
 
 		sw.stop();
-		version(dmd2_052)
+		version(dmd2_053)
 			long t = cast(long) sw.peek().usecs;
 		else
 			long t = cast(long) sw.peek().microseconds;

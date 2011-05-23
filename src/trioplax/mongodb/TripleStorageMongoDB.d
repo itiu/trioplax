@@ -641,7 +641,7 @@ class TripleStorageMongoDB: TripleStorage
 		bson_destroy(&query);
 
 		sw.stop();
-		version(dmd2_052)
+		version(dmd2_053)
 			long t = cast(long) sw.peek().usecs;
 		else
 			long t = cast(long) sw.peek().microseconds;
@@ -889,7 +889,7 @@ class TripleStorageMongoDB: TripleStorage
 		bson_destroy(&op);
 
 		sw.stop();
-		version(dmd2_052)
+		version(dmd2_053)
 			long t = cast(long) sw.peek().usecs;
 		else
 			long t = cast(long) sw.peek().microseconds;
@@ -1103,7 +1103,7 @@ class TripleStorageMongoDB: TripleStorage
 
 			sw0.stop();
 
-			version(dmd2_052)
+			version(dmd2_053)
 				long t0 = cast(long) sw0.peek().usecs;
 			else
 				long t0 = cast(long) sw0.peek().microseconds;
