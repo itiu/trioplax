@@ -1,4 +1,6 @@
 // TODO Batch insert/update
+// TODO утечка памяти при добавлении фактов
+// TODO утечка памяти при чтении фактов
 
 module trioplax.mongodb.TripleStorageMongoDB;
 
@@ -80,7 +82,9 @@ class TripleStorageMongoDBIterator: TLIterator
 	~this()
 	{
 		if(cursor !is null)
+		{
 			mongo_cursor_destroy(cursor);
+		}
 	}
 
 	int opApply(int delegate(ref Triple) dg)
@@ -472,7 +476,7 @@ class TripleStorageMongoDB: TripleStorage
 		multilang_predicates["swrc:firstName"] = true;
 		multilang_predicates["swrc:lastName"] = true;
 		multilang_predicates["gost19:middleName"] = true;
-		multilang_predicates["docs19:position"] = true;
+		multilang_predicates["docs:position"] = true;
 
 		predicate_as_multiple["a"] = true;
 		predicate_as_multiple["rdf:type"] = true;
@@ -483,7 +487,7 @@ class TripleStorageMongoDB: TripleStorage
 		fulltext_indexed_predicates["swrc:firstName"] = true;
 		fulltext_indexed_predicates["swrc:lastName"] = true;
 		fulltext_indexed_predicates["gost19:middleName"] = true;
-		fulltext_indexed_predicates["docs19:position"] = true;
+		fulltext_indexed_predicates["docs:position"] = true;
 		fulltext_indexed_predicates["rdfs:label"] = true;		
 		fulltext_indexed_predicates["swrc:email"] = true;
 		fulltext_indexed_predicates["swrc:phone"] = true;
@@ -598,6 +602,11 @@ class TripleStorageMongoDB: TripleStorage
 		store_predicate_in_list_on_idx_s1ppoo = _store_predicate_in_list_on_idx_s1ppoo;
 	}
 
+	public bool removeSubject(string s)
+	{
+		return false;
+	}
+
 	public bool isExistSubject(string subject)
 	{
 		if(ts_mem !is null)
@@ -639,6 +648,7 @@ class TripleStorageMongoDB: TripleStorage
 //		mongo_cursor_destroy(cursor);
 		bson_destroy(&fields);
 		bson_destroy(&query);
+		bson_destroy(&out_data);
 
 		sw.stop();
 		version(dmd2_053)
@@ -840,6 +850,9 @@ class TripleStorageMongoDB: TripleStorage
 //			bson_buffer* sub2 = bson_append_start_array(sub1, cast(char*) "$each");			
 
 			char[] l_o = cast(char[])tolower(tt.O);
+			
+			if (l_o.length > 2)
+			{
 			bson_append_stringA(sub, cast(char[])"_keywords", l_o);
 			bson_append_finish_object(sub);
 			bson_from_buffer(&op, &bb);
@@ -847,8 +860,10 @@ class TripleStorageMongoDB: TripleStorage
 			
 			for (int ic = 0; ic < l_o.length; ic++)
 			{
-				if (l_o[ic] == '"' || l_o[ic] == '\'' || l_o[ic] == '@' || l_o[ic] == '\'' || l_o[ic] == '\\' || l_o[ic] == '.' || l_o[ic] == '+')   
-					l_o[ic] = ' ';
+				if (l_o[ic] == '"' || l_o[ic] == '\'' || 
+				    (l_o[ic] == '@' && (l_o.length - ic) < 3) || 
+				    l_o[ic] == '\'' || l_o[ic] == '\\' || l_o[ic] == '.' || l_o[ic] == '+')   
+				l_o[ic] = ' ';
 			}
 
 			aaa = split(l_o, " ");
@@ -872,7 +887,7 @@ class TripleStorageMongoDB: TripleStorage
 			bson_append_finish_object(sub);
 			bson_from_buffer(&op, &bb);
 			mongo_update(&conn, ns, &cond, &op, 1);
-			
+			}
 //			bson_append_finish_object(sub2);
 //			bson_append_finish_object(sub1);
 //			bson_append_finish_object(sub);
@@ -945,10 +960,10 @@ class TripleStorageMongoDB: TripleStorage
 			return res;
 		}
 
-		StopWatch sw;
-		sw.start();
+//		StopWatch sw;
+//		sw.start();
 
-		int dummy;
+//		int dummy;
 
 		total_count_queries++;
 
@@ -1078,7 +1093,6 @@ class TripleStorageMongoDB: TripleStorage
 			//			}
 
 			bson_from_buffer(&fields, &bb2);
-
 			bson_from_buffer(&query, &bb);
 
 			if(trace_msg[1005] == 1)
@@ -1117,7 +1131,8 @@ class TripleStorageMongoDB: TripleStorage
 			}
 
 			TLIterator it = new TripleStorageMongoDBIterator(cursor, reading_predicates);
-
+			
+			bson_destroy(&fields);
 			bson_destroy(&query);
 
 			return it;

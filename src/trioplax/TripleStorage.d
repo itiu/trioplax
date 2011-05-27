@@ -21,6 +21,7 @@ interface TripleStorage
 	public bool isExistSubject (string subject); 
 	
 	public bool removeTriple(char[] s, char[] p, char[] o);
+	public bool removeSubject(string s);
 	
 	// configure functions	
 	public void set_new_index(ubyte index, uint max_count_element, uint max_length_order, uint inital_triple_area_length);
