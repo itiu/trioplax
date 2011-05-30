@@ -491,6 +491,7 @@ class TripleStorageMongoDB: TripleStorage
 		fulltext_indexed_predicates["rdfs:label"] = true;		
 		fulltext_indexed_predicates["swrc:email"] = true;
 		fulltext_indexed_predicates["swrc:phone"] = true;
+		fulltext_indexed_predicates["gost19:internal_phone"] = true;
 
 		myCreatedString = new char[][max_of_myCreatedString];
 		count_of_myCreatedString = 0;
@@ -602,10 +603,29 @@ class TripleStorageMongoDB: TripleStorage
 		store_predicate_in_list_on_idx_s1ppoo = _store_predicate_in_list_on_idx_s1ppoo;
 	}
 
-	public bool removeSubject(string s)
-	{
-		return false;
-	}
+        public bool removeSubject(string s)
+        {
+                try
+                {
+                        bson_buffer bb;
+                        bson cond;
+        
+                        bson_buffer_init(&bb);
+                        bson_append_stringA(&bb, cast(char[]) "@", cast(char[])s);
+                        bson_from_buffer(&cond, &bb);
+        
+                        mongo_remove(&conn, ns, &cond);
+        
+                        bson_destroy(&cond);
+
+                        return true;
+                }
+                catch (Exception ex)
+                {
+                        return false;
+                }
+        }
+
 
 	public bool isExistSubject(string subject)
 	{
