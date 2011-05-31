@@ -14,7 +14,7 @@ Logger log;
 
 static this()
 {
-	log = new Logger("trioplax.log", "");
+	log = new Logger("trioplax", "log", "");
 }
 
 class List
@@ -517,5 +517,10 @@ class TripleStorageMemory: TripleStorage
 			idx[cast(immutable) key] = apnpdr;
 		}
 		apnpdr.put(tt);
+	}
+	
+	public bool removeSubject(string s)
+	{
+		return false;
 	}
 }

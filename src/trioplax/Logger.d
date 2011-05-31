@@ -10,41 +10,50 @@ private import std.stdio;
 private import std.datetime;
 import std.c.linux.linux;
 
-//package
-//{
-//	Logger log;
-//}
-
 byte trace_msg[10000];
 
 public class Logger
 {
-	private string trace_logfilename = "app.log";
+	private tm* prev_datetime = null; 
+	private string trace_logfilename = "app";
+	private string ext = "log";
+	
 	private FILE* ff;
 	private string src = "";
 
-	//	static this()
-	//	{
-	//		log = new Logger();
-	//	}
-
-	//	static ~this()
-	//	{
-	//		delete log;
-	//	}
-
-	this(string log_name, string _src)
-	{
+	this(string log_name, string _ext, string _src)
+	{		
 		trace_logfilename = log_name;
-		ff = fopen(trace_logfilename.ptr, "aw");
 		src = _src;
+		ext = _ext;
+		open_file ();
 	}
 
 	~this()
 	{
-		fclose(ff);;
+		fclose(ff);
 	}
 
+	private void open_file ()
+	{
+		int tt = time(null);
+		tm* ptm = localtime(&tt);
+		int year = ptm.tm_year + 1900;
+		int month = ptm.tm_mon;
+		int day = ptm.tm_mday;
+		int hour = ptm.tm_hour;
+		int minute = ptm.tm_min;
+		int second = ptm.tm_sec;
+
+		auto writer = appender!string();
+
+		formattedWrite(writer, "%s_%04d-%02d-%02d_%02d:%02d:%02d.%s", trace_logfilename, year, month, day, hour, minute, second, ext);
+
+		writer.put(cast(char) 0);
+		
+		ff = fopen(writer.data.ptr, "aw");
+	}
+	
 	void trace_io(bool io, byte* data, int len)
 	{
 		d_time now = getUTCtime();
@@ -55,7 +64,7 @@ public class Logger
 			str_io = "INPUT";
 		else
 			str_io = "OUTPUT";
-
+			
 		int tt = time(null);
 		tm* ptm = localtime(&tt);
 		int year = ptm.tm_year + 1900;
@@ -66,6 +75,12 @@ public class Logger
 		int second = ptm.tm_sec;
 		int milliseconds = msFromTime(now);
 
+		if (prev_datetime !is null && hour > prev_datetime.tm_hour)
+		{
+			fclose(ff);
+			open_file ();
+		}
+		
 		auto writer = appender!string();
 
 		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d]\n%s\n", year, month, day, hour, minute, second, milliseconds, str_io);
@@ -73,7 +88,7 @@ public class Logger
 		writer.put(cast(char) 0);
 
 		fputs(cast(char*) writer.data, ff);
-
+		
 		for(int i = 0; i < len - 1; i++)
 		{
 			if(*data != 0)
@@ -81,8 +96,10 @@ public class Logger
 			data++;
 		}
 		fputc('\r', ff);
-
+		
 		fflush(ff);
+		
+		prev_datetime = ptm;		
 	}
 
 	string trace(Char, A...)(in Char[] fmt, A args)
@@ -99,6 +116,12 @@ public class Logger
 		int second = ptm.tm_sec;
 		int milliseconds = msFromTime(now);
 
+		if (prev_datetime !is null && hour > prev_datetime.tm_hour)
+		{
+			fclose(ff);
+			open_file ();
+		}
+		
 		//	       StopWatch sw1; sw1.start();
 		auto writer = appender!string();
 
@@ -114,6 +137,8 @@ public class Logger
 		//               writeln (cast(long) sw1.peek().microseconds);
 
 		fflush(ff);
+
+		prev_datetime = ptm;		
 
 		return writer.data;
 	}

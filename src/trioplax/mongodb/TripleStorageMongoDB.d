@@ -36,7 +36,7 @@ enum caching_type: byte
 
 static this()
 {
-	log = new Logger("trioplax.log", "");
+	log = new Logger("trioplax", "log", "");
 }
 
 class TripleStorageMongoDBIterator: TLIterator

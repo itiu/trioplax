@@ -10,7 +10,7 @@ Logger log;
 
 static this()
 {
-	log = new Logger("trioplax.log", "");
+	log = new Logger("trioplax", "log", "");
 }
 
 class TwoKeys
