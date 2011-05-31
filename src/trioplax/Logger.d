@@ -14,11 +14,11 @@ byte trace_msg[10000];
 
 public class Logger
 {
-	private tm* prev_datetime = null; 
+	private int prev_time = 0; 
 	private string trace_logfilename = "app";
 	private string ext = "log";
 	
-	private FILE* ff;
+	private FILE* ff = null;
 	private string src = "";
 
 	this(string log_name, string _ext, string _src)
@@ -26,7 +26,7 @@ public class Logger
 		trace_logfilename = log_name;
 		src = _src;
 		ext = _ext;
-		open_file ();
+		open_new_file ();
 	}
 
 	~this()
@@ -34,7 +34,7 @@ public class Logger
 		fclose(ff);
 	}
 
-	private void open_file ()
+	private void open_new_file ()
 	{
 		int tt = time(null);
 		tm* ptm = localtime(&tt);
@@ -51,13 +51,17 @@ public class Logger
 
 		writer.put(cast(char) 0);
 		
+		if (ff !is null)
+		{
+			fflush(ff);
+			fclose(ff);
+		}
+		
 		ff = fopen(writer.data.ptr, "aw");
 	}
 	
 	void trace_io(bool io, byte* data, int len)
 	{
-		d_time now = getUTCtime();
-
 		string str_io;
 
 		if(io == true)
@@ -73,12 +77,12 @@ public class Logger
 		int hour = ptm.tm_hour;
 		int minute = ptm.tm_min;
 		int second = ptm.tm_sec;
+		d_time now = getUTCtime();
 		int milliseconds = msFromTime(now);
 
-		if (prev_datetime !is null && hour > prev_datetime.tm_hour)
+		if (prev_time > 0 && day != prev_time)
 		{
-			fclose(ff);
-			open_file ();
+			open_new_file ();
 		}
 		
 		auto writer = appender!string();
@@ -99,13 +103,11 @@ public class Logger
 		
 		fflush(ff);
 		
-		prev_datetime = ptm;		
+		prev_time = day;		
 	}
 
 	string trace(Char, A...)(in Char[] fmt, A args)
 	{
-		d_time now = getUTCtime();
-
 		int tt = time(null);
 		tm* ptm = localtime(&tt);
 		int year = ptm.tm_year + 1900;
@@ -114,12 +116,12 @@ public class Logger
 		int hour = ptm.tm_hour;
 		int minute = ptm.tm_min;
 		int second = ptm.tm_sec;
+		d_time now = getUTCtime();
 		int milliseconds = msFromTime(now);
 
-		if (prev_datetime !is null && hour > prev_datetime.tm_hour)
+		if (prev_time > 0 && day != prev_time)
 		{
-			fclose(ff);
-			open_file ();
+			open_new_file ();
 		}
 		
 		//	       StopWatch sw1; sw1.start();
@@ -138,7 +140,7 @@ public class Logger
 
 		fflush(ff);
 
-		prev_datetime = ptm;		
+		prev_time = day;		
 
 		return writer.data;
 	}
