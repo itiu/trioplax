@@ -163,19 +163,25 @@ class TripleStorageMongoDBIterator: TLIterator
 								{
 									Triple[] r1_reif_triples = *vv;
 
-									Triple tt0 = new Triple(r1_reif_triples[0].S, "rdf:Subject", S);
+									Triple tt0 = new Triple(r1_reif_triples[0].S, "rdf:subject", S);
 									
 									result = dg(tt0);
 									if(result)
 										return 1;
 
-									tt0 = new Triple(r1_reif_triples[0].S, "rdf:Predicate", P);
+									tt0 = new Triple(r1_reif_triples[0].S, "rdf:predicate", P);
 
 									result = dg(tt0);
 									if(result)
 										return 1;
 
-									tt0 = new Triple(r1_reif_triples[0].S, "rdf:Object", O);
+									tt0 = new Triple(r1_reif_triples[0].S, "rdf:object", O);
+
+									result = dg(tt0);
+									if(result)
+										return 1;
+
+									tt0 = new Triple(r1_reif_triples[0].S, "a", "rdf:Statement");
 
 									result = dg(tt0);
 									if(result)
@@ -880,8 +886,9 @@ class TripleStorageMongoDB: TripleStorage
 			
 			for (int ic = 0; ic < l_o.length; ic++)
 			{
-				if (l_o[ic] == '"' || l_o[ic] == '\'' || 
-				    (l_o[ic] == '@' && (l_o.length - ic) < 3) || 
+				if ((l_o[ic] == '-' && ic == 0) ||
+				    l_o[ic] == '"' || l_o[ic] == '\'' || 
+				    (l_o[ic] == '@' && (l_o.length - ic) > 4) || 
 				    l_o[ic] == '\'' || l_o[ic] == '\\' || l_o[ic] == '.' || l_o[ic] == '+')   
 				l_o[ic] = ' ';
 			}
