@@ -163,39 +163,42 @@ class TripleStorageMongoDBIterator: TLIterator
 								{
 									Triple[] r1_reif_triples = *vv;
 
-									Triple tt0 = new Triple(r1_reif_triples[0].S, "rdf:subject", S);
-									
-									result = dg(tt0);
-									if(result)
-										return 1;
-
-									tt0 = new Triple(r1_reif_triples[0].S, "rdf:predicate", P);
-
-									result = dg(tt0);
-									if(result)
-										return 1;
-
-									tt0 = new Triple(r1_reif_triples[0].S, "rdf:object", O);
-
-									result = dg(tt0);
-									if(result)
-										return 1;
-
-									tt0 = new Triple(r1_reif_triples[0].S, "a", "rdf:Statement");
-
-									result = dg(tt0);
-									if(result)
-										return 1;
-
-									foreach(tt; r1_reif_triples)
+									if (r1_reif_triples !is null && r1_reif_triples.length > 0)
 									{
-										// можно добавлять в список
-										if(trace_msg[1010] == 1)
-											log.trace("reif : %s", tt);
+										Triple tt0 = new Triple(r1_reif_triples[0].S, "a", "rdf:Statement");
 
-										result = dg(tt);
+										result = dg(tt0);
 										if(result)
 											return 1;
+
+										tt0 = new Triple(r1_reif_triples[0].S, "rdf:subject", S);
+									
+										result = dg(tt0);
+										if(result)
+											return 1;
+
+										tt0 = new Triple(r1_reif_triples[0].S, "rdf:predicate", P);
+
+										result = dg(tt0);
+										if(result)
+											return 1;
+
+										tt0 = new Triple(r1_reif_triples[0].S, "rdf:object", O);
+
+										result = dg(tt0);
+										if(result)
+											return 1;
+																		
+										foreach(tt; r1_reif_triples)
+										{
+											// можно добавлять в список
+											if(trace_msg[1010] == 1)
+												log.trace("reif : %s", tt);
+
+											result = dg(tt);
+											if(result)
+												return 1;
+										}
 									}
 								}
 							}
@@ -205,7 +208,7 @@ class TripleStorageMongoDBIterator: TLIterator
 
 						break;
 					}
-
+					
 					case bson_type.bson_array:
 					{
 						string _name_key = fromStringz(bson_iterator_key(&it));
@@ -313,8 +316,8 @@ class TripleStorageMongoDBIterator: TLIterator
 										string _name_key_L1 = fromStringz(bson_iterator_key(&i_L1));
 										string o_reif_parent_triple = _name_key_L1; 
 
-										//										if(trace_msg[1014] == 1)
-//											log.trace("TripleStorageMongoDBIterator:_name_key_L1 %s", _name_key_L1);
+										if(trace_msg[1014] == 1)
+											log.trace("TripleStorageMongoDBIterator:_name_key_L1 %s", _name_key_L1);
 
 										char* val_L2 = bson_iterator_value(&i_L1);
 										
@@ -331,31 +334,66 @@ class TripleStorageMongoDBIterator: TLIterator
 											{
 												case bson_type.bson_string:
 												{
-													if(last_r_triples >= r_triples.length)
-														r_triples.length += 50;
-
 													string _name_key_L2 = fromStringz(bson_iterator_key(&i_L2));
 
-//													if(trace_msg[1015] == 1)
-//														log.trace("TripleStorageMongoDBIterator:_name_key_L2=%s", _name_key_L2);
-
-													//	r_triple.P = _name_key_L2;
+													if(trace_msg[1015] == 1)
+														log.trace("TripleStorageMongoDBIterator:_name_key_L2=%s", _name_key_L2);
 
 													string _name_val_L2 = fromStringz(bson_iterator_string(&i_L2));
 
-//													if(trace_msg[1016] == 1)
-//														log.trace("TripleStorageMongoDBIterator:_name_val_L2L=%s", _name_val_L2);
+													if(trace_msg[1016] == 1)
+														log.trace("TripleStorageMongoDBIterator:_name_val_L2L=%s", _name_val_L2);
 
+													//	r_triple.P = _name_key_L2;
 													//	r_triple.O = _name_val_L2;
 													//	r_triple.S = cast(immutable) reifed_data_subj;
 
 													Triple r_triple = new Triple(cast(immutable) reifed_data_subj, _name_key_L2, _name_val_L2);
 //													log.trace("++ triple %s", r_triple);
 													
+													if(last_r_triples >= r_triples.length)
+														r_triples.length += 50;
+
 													r_triples[last_r_triples] = r_triple;
 														
 													last_r_triples++;
+													
 													break;
+												}
+												
+												case bson_type.bson_array:
+												{
+													string _name_key_L2 = fromStringz(bson_iterator_key(&i_L2));
+														
+													val = bson_iterator_value(&i_L2);
+
+													bson_iterator i_1;
+													bson_iterator_init(&i_1, val);
+
+													while(bson_iterator_next(&i_1))
+													{
+														switch(bson_iterator_type(&i_1))
+														{
+															case bson_type.bson_string:
+															{																	
+																string A_value = fromStringz(bson_iterator_string(&i_1));
+																
+																Triple r_triple = new Triple(cast(immutable) reifed_data_subj, _name_key_L2, A_value);
+																	
+																if(last_r_triples >= r_triples.length)
+																	r_triples.length += 50;
+
+																r_triples[last_r_triples] = r_triple;
+																		
+																last_r_triples++;																	
+															}
+															default:
+															break;
+														}
+
+													}
+														
+													break;													
 												}
 
 												default:
@@ -398,8 +436,6 @@ class TripleStorageMongoDBIterator: TLIterator
 								}
 
 							}
-							
-//							log.trace("TripleStorageMongoDBIterator: # >");
 
 						}
 
@@ -419,6 +455,7 @@ class TripleStorageMongoDBIterator: TLIterator
 				}
 			}
 		}
+		
 		mongo_cursor_destroy(cursor);
 		cursor = null;
 
