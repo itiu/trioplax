@@ -503,9 +503,9 @@ class TripleStorageMongoDB: TripleStorage
 	private char[] P2;
 	private char[] store_predicate_in_list_on_idx_s1ppoo;
 
-	char[][] myCreatedString;
-	int count_of_myCreatedString;
-	int max_of_myCreatedString = 200_000;
+//	char[][] myCreatedString;
+//	int count_of_myCreatedString;
+//	int max_of_myCreatedString = 200_000;
 
 	TripleStorageMemory ts_mem;
 
@@ -536,11 +536,11 @@ class TripleStorageMongoDB: TripleStorage
 		fulltext_indexed_predicates["swrc:phone"] = true;
 		fulltext_indexed_predicates["gost19:internal_phone"] = true;
 
-		myCreatedString = new char[][max_of_myCreatedString];
-		count_of_myCreatedString = 0;
+//		myCreatedString = new char[][max_of_myCreatedString];
+//		count_of_myCreatedString = 0;
 
-		for(int i = 0; i < myCreatedString.length; i++)
-			myCreatedString[i] = new char[255];
+//		for(int i = 0; i < myCreatedString.length; i++)
+//			myCreatedString[i] = new char[255];
 
 		col = cast(char*) collection;
 		ns = cast(char*) (collection ~ ".simple");
