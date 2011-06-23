@@ -10,7 +10,7 @@ private import std.stdio;
 private import std.datetime;
 import std.c.linux.linux;
 
-byte trace_msg[10000];
+byte trace_msg[1000];
 
 public class Logger
 {
@@ -89,19 +89,13 @@ public class Logger
 
 		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d]\n%s\n", year, month, day, hour, minute, second, milliseconds, str_io);
 
-		writer.put(cast(char) 0);
-
-		fputs(cast(char*) writer.data, ff);
+		fwrite (cast(char*)writer.data , 1 , writer.data.length , ff);
 		
-		for(int i = 0; i < len - 1; i++)
-		{
-			if(*data != 0)
-				fputc(*data, ff);
-			data++;
-		}
+		fwrite (data , 1 , len - 1, ff);
+
 		fputc('\r', ff);
 		
-		fflush(ff);
+//		fflush(ff);
 		
 		prev_time = day;		
 	}
@@ -138,7 +132,7 @@ public class Logger
 		//    		sw1.stop();
 		//               writeln (cast(long) sw1.peek().microseconds);
 
-		fflush(ff);
+//		fflush(ff);
 
 		prev_time = day;		
 
