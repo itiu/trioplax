@@ -10,7 +10,7 @@ private import std.stdio;
 private import std.datetime;
 import std.c.linux.linux;
 
-byte trace_msg[1000];
+byte trace_msg[1100];
 
 public class Logger
 {
