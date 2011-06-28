@@ -430,7 +430,7 @@ class TripleStorageMemory: TripleStorage
 		return false;
 	}
 
-	public bool removeTriple(char[] s, char[] p, char[] o)
+	public bool removeTriple(string s, string p, string o)
 	{
 		return false;
 	}

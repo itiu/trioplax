@@ -95,7 +95,7 @@ public class Logger
 
 		fputc('\r', ff);
 		
-//		fflush(ff);
+		fflush(ff);
 		
 		prev_time = day;		
 	}
@@ -132,7 +132,7 @@ public class Logger
 		//    		sw1.stop();
 		//               writeln (cast(long) sw1.peek().microseconds);
 
-//		fflush(ff);
+		fflush(ff);
 
 		prev_time = day;		
 

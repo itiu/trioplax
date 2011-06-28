@@ -20,7 +20,7 @@ interface TripleStorage
 	
 	public bool isExistSubject (string subject); 
 	
-	public bool removeTriple(char[] s, char[] p, char[] o);
+	public bool removeTriple(string s, string p, string o);
 	public bool removeSubject(string s);
 	
 	// configure functions	

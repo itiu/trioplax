@@ -101,7 +101,7 @@ class TripleStorageMongoDBIterator: TLIterator
 		if(trace_msg[1007] == 1)
 			log.trace("TripleStorageMongoDBIterator:reading_predicates %s", reading_predicates);
 		
-		while(mongo_cursor_next(cursor))
+		while(mongo_cursor_next(cursor) == MONGO_OK)
 		{
 			bson_iterator it;
 			bson_iterator_init(&it, cursor.current.data);
@@ -547,13 +547,13 @@ class TripleStorageMongoDB: TripleStorage
 
 		buff = new char[32];
 
-		mongo_connection_options opts;
+		mongo_host_port opts;
 
 		strncpy(cast(char*) opts.host, host.ptr, 255);
 		opts.host[254] = '\0';
 		opts.port = port;
 
-		if(mongo_connect(&conn, &opts))
+		if(mongo_connect(&conn, opts.host, opts.port))
 		{
 			log.trace("failed to connect to mongodb");
 			throw new Exception("failed to connect to mongodb");
@@ -654,7 +654,7 @@ class TripleStorageMongoDB: TripleStorage
                         bson cond;
         
                         bson_buffer_init(&bb);
-                        bson_append_stringA(&bb, cast(char[]) "@", cast(char[])s);
+                        bson_append_stringA(&bb, "@", s);
                         bson_from_buffer(&cond, &bb);
         
                         mongo_remove(&conn, ns, &cond);
@@ -691,7 +691,7 @@ class TripleStorageMongoDB: TripleStorage
 
 			if(subject !is null)
 			{
-				bson_append_stringA(&bb, cast(char[]) "@", cast(char[]) subject);
+				bson_append_stringA(&bb, "@", subject);
 			}
 
 			bson_from_buffer(&query, &bb);
@@ -705,7 +705,7 @@ class TripleStorageMongoDB: TripleStorage
 //		{
 //			res = true;
 //		}
-		if (mongo_find_one(&conn, ns, &query, &fields, &out_data) > 0)
+		if (mongo_find_one(&conn, ns, &query, &fields, &out_data) == 0)
 			res = true;
 
 //		mongo_cursor_destroy(cursor);
@@ -726,7 +726,7 @@ class TripleStorageMongoDB: TripleStorage
 		return res;
 	}
 
-	public bool removeTriple(char[] s, char[] p, char[] o)
+	public bool removeTriple(string s, string p, string o)
 	{
 		//		log.trace("TripleStorageMongoDB:remove triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\"");
 
@@ -745,7 +745,7 @@ class TripleStorageMongoDB: TripleStorage
 		bson_buffer_init(&bb);
 		//		log.trace("remove! #2");
 
-		bson_append_stringA(&bb, cast(char[]) "@", s);
+		bson_append_stringA(&bb, "@", s);
 		bson_append_stringA(&bb, p, o);
 		bson_from_buffer(&query, &bb);
 		mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
@@ -793,7 +793,7 @@ class TripleStorageMongoDB: TripleStorage
 			bson cond;
 
 			bson_buffer_init(&bb);
-			bson_append_stringA(&bb, cast(char[]) "@", s);
+			bson_append_stringA(&bb, "@", s);
 			bson_from_buffer(&cond, &bb);
 
 			//			if(p == HAS_PART)
@@ -806,9 +806,9 @@ class TripleStorageMongoDB: TripleStorage
 			//			} else
 			{
 				bson_buffer_init(&bb);
-				bson_buffer* sub = bson_append_start_object(&bb, "$unset");
-				bson_append_int(sub, p.ptr, 1);
-				bson_append_finish_object(sub);
+				bson_append_start_object(&bb, "$unset");
+				bson_append_int(&bb, p.ptr, 1);
+				bson_append_finish_object(&bb);
 			}
 
 			bson_from_buffer(&op, &bb);
@@ -854,44 +854,42 @@ class TripleStorageMongoDB: TripleStorage
 		bson cond;
 
 		bson_buffer_init(&bb);
-		bson_append_stringA(&bb, cast(char[]) "@", cast(char[]) tt.S);
+		bson_append_stringA(&bb, "@", tt.S);
 		bson_from_buffer(&cond, &bb);
 
 		bson_buffer_init(&bb);
 		if((tt.P in predicate_as_multiple) !is null)
 		{
-			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
+			bson_append_start_object(&bb, "$addToSet");
 
 			if(tt.lang == _NONE)
-				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) tt.O);
+				bson_append_stringA(&bb, tt.P, tt.O);
 			else if(tt.lang == _RU)
-				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) (tt.O ~ "@ru"));
+				bson_append_stringA(&bb, tt.P, tt.O ~ "@ru");
 			if(tt.lang == _EN)
-				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) (tt.O ~ "@en"));
+				bson_append_stringA(&bb, tt.P, tt.O ~ "@en");
 
-			bson_append_finish_object(sub);
+			bson_append_finish_object(&bb);
 		}
 		else
 		{
-			bson_buffer* sub;
-
 			if(tt.lang == _NONE)
 			{
-				sub = bson_append_start_object(&bb, "$set");
-				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) tt.O);
+				bson_append_start_object(&bb, "$set");
+				bson_append_stringA(&bb, tt.P, tt.O);
 			}
 			else if(tt.lang == _RU)
 			{
-				sub = bson_append_start_object(&bb, "$addToSet");
-				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) (tt.O ~ "@ru"));
+				bson_append_start_object(&bb, "$addToSet");
+				bson_append_stringA(&bb, tt.P, tt.O ~ "@ru");
 			}
 			else if(tt.lang == _EN)
 			{
-				sub = bson_append_start_object(&bb, "$addToSet");
-				bson_append_stringA(sub, cast(char[]) tt.P, cast(char[]) (tt.O ~ "@en"));
+				bson_append_start_object(&bb, "$addToSet");
+				bson_append_stringA(&bb, tt.P, tt.O ~ "@en");
 			}
 
-			bson_append_finish_object(sub);
+			bson_append_finish_object(&bb);
 		}
 		bson_from_buffer(&op, &bb);
 //		log.trace ("query FT %s", bson_to_string (&op));
@@ -904,7 +902,7 @@ class TripleStorageMongoDB: TripleStorage
 		if((tt.P in fulltext_indexed_predicates) !is null)
 		{
 			bson_buffer_init(&bb);
-			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
+			bson_append_start_object(&bb, "$addToSet");
 
 //			bson_buffer* sub1 = bson_append_start_object(sub, "_keywords");
 			
@@ -916,8 +914,8 @@ class TripleStorageMongoDB: TripleStorage
 			
 			if (l_o.length > 2)
 			{
-			bson_append_stringA(sub, cast(char[])"_keywords", l_o);
-			bson_append_finish_object(sub);
+			bson_append_stringA(&bb, "_keywords", cast (immutable)l_o);
+			bson_append_finish_object(&bb);
 			bson_from_buffer(&op, &bb);
 			mongo_update(&conn, ns, &cond, &op, 1);
 			
@@ -933,22 +931,22 @@ class TripleStorageMongoDB: TripleStorage
 			aaa = split(l_o, " ");
 			
 			bson_buffer_init(&bb);
-			sub = bson_append_start_object(&bb, "$addToSet");
-			bson_buffer* sub1 = bson_append_start_object(sub, "_keywords");
-			bson_buffer* sub2 = bson_append_start_array(sub, cast(char*) "$each");
+			bson_append_start_object(&bb, "$addToSet");
+			bson_append_start_object(&bb, "_keywords");
+			bson_append_start_array(&bb, cast(char*) "$each");
 			
 			foreach (aa; aaa)
 			{
 				if (aa.length > 2)
 				{
 //					bson_append_stringA(sub, cast(char[])"_keywords", aa);
-					bson_append_stringA(sub, null, aa);
+					bson_append_stringA(&bb, "", cast (immutable)aa);
 				}
 			}
 			
-			bson_append_finish_object(sub2);
-			bson_append_finish_object(sub1);
-			bson_append_finish_object(sub);
+			bson_append_finish_object(&bb);
+			bson_append_finish_object(&bb);
+			bson_append_finish_object(&bb);
 			bson_from_buffer(&op, &bb);
 			mongo_update(&conn, ns, &cond, &op, 1);
 			}
@@ -1001,19 +999,19 @@ class TripleStorageMongoDB: TripleStorage
 
 	private void add_fulltext_to_query(string fulltext_param, bson_buffer* bb)
 	{
-		bson_buffer* sub = bson_append_start_object(bb, "_keywords");
+		bson_append_start_object(bb, "_keywords");
 
-		bson_buffer* sub1 = bson_append_start_array(bb, cast(char*) "$all\0");
+		bson_append_start_array(bb, cast(char*) "$all");
 
 		string[] values = split(fulltext_param, ",");
 		foreach(val; values)
 		{
-			bson_append_regexA(sub1, null, cast(char[]) val, cast(char[])"imx");
+			bson_append_regexA(bb, " ", val, "imx");
 		}
 
-		bson_append_finish_object(sub1);
+		bson_append_finish_object(bb);
 
-		bson_append_finish_object(sub);
+		bson_append_finish_object(bb);
 	}
 
 	public TLIterator getTriples(string s, string p, string o)
@@ -1043,12 +1041,12 @@ class TripleStorageMongoDB: TripleStorage
 
 			if(s !is null)
 			{
-				bson_append_stringA(&bb, cast(char[]) "@", cast(char[]) s);
+				bson_append_stringA(&bb, "@", s);
 			}
 
 			if(p !is null && o !is null)
 			{
-				bson_append_stringA(&bb, cast(char[]) p, cast(char[]) o);
+				bson_append_stringA(&bb, p, o);
 			}
 
 			//			bson_append_int(&bb2, cast(char*)"@", 1);
@@ -1065,9 +1063,9 @@ class TripleStorageMongoDB: TripleStorage
 
 		int length_list = 0;
 
-		//		log.trace("GET TRIPLES #6");
-		mongo_cursor* cursor = null;
-		cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
+//		writeln ("query:", bson_to_string(&query));
+		
+		mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
 
 		TLIterator it = new TripleStorageMongoDBIterator(cursor);
 
@@ -1135,6 +1133,7 @@ class TripleStorageMongoDB: TripleStorage
 
 			reading_predicates["@"] = field.GET;
 
+			
 			//			int count_readed_fields = 0;
 			//			for(int i = 0; i < reading_predicates.keys.length; i++)
 			//			{
@@ -1177,6 +1176,7 @@ class TripleStorageMongoDB: TripleStorage
 			StopWatch sw0;
 			sw0.start();
 
+//			writeln ("query1:", bson_to_string(&query));
 			mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
 
 			sw0.stop();
@@ -1226,31 +1226,31 @@ class TripleStorageMongoDB: TripleStorage
 			string[] values = split(field_value, ",");
 			if(values.length > 0)
 			{
-				bson_buffer* sub = bson_append_start_array(bb, cast(char*) "$or");
+				bson_append_start_array(bb, cast(char*) "$or");
 
 				foreach(val; values)
 				{
-					bson_buffer* sub1 = bson_append_start_object(bb, "");
+					bson_append_start_object(bb, "");
 
 					if(field_is_multilang)
-						bson_append_stringA(sub1, cast(char[]) field_name, cast(char[]) (val ~ "@ru"));
+						bson_append_stringA(bb, field_name, val ~ "@ru");
 					else
-						bson_append_stringA(sub1, cast(char[]) field_name, cast(char[]) val);
+						bson_append_stringA(bb, field_name, val);
 
-					bson_append_finish_object(sub1);
+					bson_append_finish_object(bb);
 				}
 
-				bson_append_finish_object(sub);
+				bson_append_finish_object(bb);
 			}
 		}
 		else
 		{
 			if(field_is_multilang)
 			{
-				bson_append_stringA(bb, cast(char[]) field_name, cast(char[]) (field_value ~ "@ru"));
+				bson_append_stringA(bb, field_name, field_value ~ "@ru");
 			}
 			else
-				bson_append_stringA(bb, cast(char[]) field_name, cast(char[]) field_value);
+				bson_append_stringA(bb, field_name, field_value);
 		}
 
 		if(trace_msg[1031] == 1)
@@ -1292,7 +1292,7 @@ void bson_raw_to_string(char* data, int depth, OutBuffer outbuff)
 
 		outbuff.write(getString(key));
 		outbuff.write(cast(char[]) ":");
-
+		
 		switch(t)
 		{
 			case bson_type.bson_int:
