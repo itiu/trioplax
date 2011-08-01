@@ -14,6 +14,7 @@ byte trace_msg[1100];
 
 public class Logger
 {
+	private int count = 0;
 	private int prev_time = 0; 
 	private string trace_logfilename = "app";
 	private string ext = "log";
@@ -36,6 +37,7 @@ public class Logger
 
 	private void open_new_file ()
 	{
+		count = 0;
 		int tt = time(null);
 		tm* ptm = localtime(&tt);
 		int year = ptm.tm_year + 1900;
@@ -61,7 +63,7 @@ public class Logger
 	}
 	
 	void trace_io(bool io, byte* data, int len)
-	{
+	{		
 		string str_io;
 
 		if(io == true)
@@ -80,7 +82,9 @@ public class Logger
 		d_time now = getUTCtime();
 		int milliseconds = msFromTime(now);
 
-		if (prev_time > 0 && day != prev_time)
+		count ++;
+
+		if (prev_time > 0 && day != prev_time || count > 1_000_000)
 		{
 			open_new_file ();
 		}
@@ -113,7 +117,8 @@ public class Logger
 		d_time now = getUTCtime();
 		int milliseconds = msFromTime(now);
 
-		if (prev_time > 0 && day != prev_time)
+		count++;
+		if (prev_time > 0 && day != prev_time || count > 1_000_000)
 		{
 			open_new_file ();
 		}
