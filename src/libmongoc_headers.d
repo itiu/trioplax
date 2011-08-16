@@ -43,6 +43,15 @@ enum mongo_error_t
 	MONGO_BSON_NOT_FINISHED /**< BSON object has not been finished. */
 };
 
+string mongo_error_str[] = ["Connection success!", "Could not create a socket.",
+		"An error occured while calling connect().", "An error occured while calling getaddrinfo().",
+		"Warning: connected to a non-master node (read-only).", "Given rs name doesn't match this replica set.",
+		"Can't find primary in replica set. Connection closed.",
+		"An error occurred while reading or writing on socket.", "The response is not the expected length.",
+		"The command returned with 'ok' value of 0.", "The cursor has no more results.",
+		"The cursor has timed out or is not recognized.", "Tailable cursor still alive but no data.",
+		"BSON not valid for the specified op.", "BSON object has not been finished."];
+
 enum bson_type
 {
 	BSON_EOO = 0,

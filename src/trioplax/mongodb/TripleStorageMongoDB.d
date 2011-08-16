@@ -588,11 +588,12 @@ class TripleStorageMongoDB: TripleStorage
 		opts.host[254] = '\0';
 		opts.port = port;
 
-		if(mongo_connect(&conn, opts.host, opts.port))
+		int err = mongo_connect(&conn, opts.host, opts.port);
+		if(err != MONGO_OK)
 		{
-			log.trace("failed to connect to mongodb");
+			log.trace("failed to connect to mongodb, err=%s", mongo_error_str[conn.err]);
 			throw new Exception("failed to connect to mongodb");
-		}
+		}		
 		log.trace("connect to mongodb sucessful");
 
 		init();
