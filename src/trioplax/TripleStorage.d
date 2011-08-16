@@ -24,10 +24,13 @@ interface TripleStorage
 	public bool removeSubject(string s);
 	
 	// configure functions	
-	public void set_new_index(ubyte index, uint max_count_element, uint max_length_order, uint inital_triple_area_length);
+//	public void set_new_index(ubyte index, uint max_count_element, uint max_length_order, uint inital_triple_area_length);
 	
-	public void define_predicate_as_multiple(char[] predicate);	
-	public void setPredicatesToS1PPOO(char[] P1, char[] P2, char[] _store_predicate_in_list_on_idx_s1ppoo);
+	public void define_predicate_as_multiple(string predicate);	
+	public void define_predicate_as_multilang(string predicate);
+	public void set_fulltext_indexed_predicates(string predicate);
+
+	//	public void setPredicatesToS1PPOO(char[] P1, char[] P2, char[] _store_predicate_in_list_on_idx_s1ppoo);
 
 	public void set_stat_info_logging(bool flag);		
 	public void set_log_query_mode (bool on_off);	

@@ -85,6 +85,10 @@ class TripleStorageMemory: TripleStorage
 	List[string] iS;
 	List[string] iP;
 	List[string] iO;
+	
+	private bool[char[]] predicate_as_multiple;
+	private bool[char[]] multilang_predicates;
+	private bool[char[]] fulltext_indexed_predicates;	
 
 	void _tmp_print_iPOPO()
 	{
@@ -436,17 +440,34 @@ class TripleStorageMemory: TripleStorage
 	}
 
 	// configure functions	
-	public void set_new_index(ubyte index, uint max_count_element, uint max_length_order, uint inital_triple_area_length)
+//	public void set_new_index(ubyte index, uint max_count_element, uint max_length_order, uint inital_triple_area_length)
+//	{
+//	}
+
+	public void define_predicate_as_multiple(string predicate)
 	{
+		predicate_as_multiple[predicate] = true;
+
+		log.trace("define predicate [{}] as multiple", predicate);
 	}
 
-	public void define_predicate_as_multiple(char[] predicate)
+	public void define_predicate_as_multilang(string predicate)
 	{
+		multilang_predicates[predicate] = true;
+
+		log.trace("define predicate [{}] as multilang", predicate);
 	}
 
-	public void setPredicatesToS1PPOO(char[] P1, char[] P2, char[] _store_predicate_in_list_on_idx_s1ppoo)
+	public void set_fulltext_indexed_predicates(string predicate)
 	{
+		fulltext_indexed_predicates[predicate] = true;
+
+		log.trace("set fulltext indexed predicate [{}]", predicate);
 	}
+
+//	public void setPredicatesToS1PPOO(char[] P1, char[] P2, char[] _store_predicate_in_list_on_idx_s1ppoo)
+//	{
+//	}
 
 	public void set_stat_info_logging(bool flag)
 	{

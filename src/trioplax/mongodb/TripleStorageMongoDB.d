@@ -534,13 +534,9 @@ class TripleStorageMongoDB: TripleStorage
 
 	private mongo conn;
 
-	private char[] P1;
-	private char[] P2;
-	private char[] store_predicate_in_list_on_idx_s1ppoo;
-
-//	char[][] myCreatedString;
-//	int count_of_myCreatedString;
-//	int max_of_myCreatedString = 200_000;
+//	private char[] P1;
+//	private char[] P2;
+//	private char[] store_predicate_in_list_on_idx_s1ppoo;
 
 	TripleStorageMemory ts_mem;
 
@@ -549,33 +545,6 @@ class TripleStorageMongoDB: TripleStorage
 	this(string host, int port, string collection, byte _caching_strategy = caching_type.NONE)
 	{
 		caching_strategy = _caching_strategy;
-
-		multilang_predicates["swrc:name"] = true;
-		multilang_predicates["swrc:firstName"] = true;
-		multilang_predicates["swrc:lastName"] = true;
-		multilang_predicates["gost19:middleName"] = true;
-		multilang_predicates["docs:position"] = true;
-
-		predicate_as_multiple["a"] = true;
-		predicate_as_multiple["rdf:type"] = true;
-		predicate_as_multiple["rdfs:subClassOf"] = true;
-		predicate_as_multiple["gost19:take"] = true;
-		
-		fulltext_indexed_predicates["swrc:name"] = true;
-		fulltext_indexed_predicates["swrc:firstName"] = true;
-		fulltext_indexed_predicates["swrc:lastName"] = true;
-		fulltext_indexed_predicates["gost19:middleName"] = true;
-		fulltext_indexed_predicates["docs:position"] = true;
-		fulltext_indexed_predicates["rdfs:label"] = true;		
-		fulltext_indexed_predicates["swrc:email"] = true;
-		fulltext_indexed_predicates["swrc:phone"] = true;
-		fulltext_indexed_predicates["gost19:internal_phone"] = true;
-
-//		myCreatedString = new char[][max_of_myCreatedString];
-//		count_of_myCreatedString = 0;
-
-//		for(int i = 0; i < myCreatedString.length; i++)
-//			myCreatedString[i] = new char[255];
 
 		col = cast(char*) collection;
 		ns = cast(char*) (collection ~ ".simple");
@@ -648,9 +617,9 @@ class TripleStorageMongoDB: TripleStorage
 		ts_mem.addTriple(triple);
 	}
 
-	public void set_cache()
-	{
-	}
+//	public void set_cache()
+//	{
+//	}
 
 	public void set_log_query_mode(bool on_off)
 	{
@@ -658,29 +627,53 @@ class TripleStorageMongoDB: TripleStorage
 
 	}
 
-	public void define_predicate_as_multiple(char[] predicate)
+	public void define_predicate_as_multiple(string predicate)
 	{
-		predicate_as_multiple[cast(immutable) predicate] = true;
+		predicate_as_multiple[predicate] = true;
+		
+		if (ts_mem !is null)
+			ts_mem.define_predicate_as_multiple(predicate);
 
 		log.trace("define predicate [{}] as multiple", predicate);
 	}
 
+	public void define_predicate_as_multilang(string predicate)
+	{
+		multilang_predicates[predicate] = true;
+
+		if (ts_mem !is null)
+			ts_mem.define_predicate_as_multilang(predicate);
+
+		log.trace("define predicate [{}] as multilang", predicate);
+	}
+
+	public void set_fulltext_indexed_predicates(string predicate)
+	{
+		fulltext_indexed_predicates[predicate] = true;
+
+		if (ts_mem !is null)
+			ts_mem.set_fulltext_indexed_predicates(predicate);
+
+		log.trace("set fulltext indexed predicate [{}]", predicate);
+	}
+
+	
 	public bool f_trace_list_pull = true;
 
-	public void set_new_index(ubyte index, uint max_count_element, uint max_length_order, uint inital_triple_area_length)
-	{
-	}
+//	public void set_new_index(ubyte index, uint max_count_element, uint max_length_order, uint inital_triple_area_length)
+//	{
+//	}
 
 	public void set_stat_info_logging(bool flag)
 	{
 	}
 
-	public void setPredicatesToS1PPOO(char[] _P1, char[] _P2, char[] _store_predicate_in_list_on_idx_s1ppoo)
-	{
-		P1 = _P1;
-		P2 = _P2;
-		store_predicate_in_list_on_idx_s1ppoo = _store_predicate_in_list_on_idx_s1ppoo;
-	}
+//	public void setPredicatesToS1PPOO(char[] _P1, char[] _P2, char[] _store_predicate_in_list_on_idx_s1ppoo)
+//	{
+//		P1 = _P1;
+//		P2 = _P2;
+//		store_predicate_in_list_on_idx_s1ppoo = _store_predicate_in_list_on_idx_s1ppoo;
+//	}
 
     public bool removeSubject(string s)
     {
