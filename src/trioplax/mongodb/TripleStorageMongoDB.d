@@ -24,7 +24,10 @@ private import trioplax.memory.ComplexKeys;
 //private import bson;
 //private import md5;
 //private import mongo;
-private import libmongoc_headers;
+private import mongo_h;
+private import mongo;
+private import bson_h;
+private import bson;
 
 Logger log;
 
@@ -564,6 +567,7 @@ class TripleStorageMongoDB: TripleStorage
 			throw new Exception("failed to connect to mongodb");
 		}		
 		log.trace("connect to mongodb sucessful");
+		mongo_set_op_timeout (&conn, 1000);
 
 		init();
 	}
@@ -634,7 +638,7 @@ class TripleStorageMongoDB: TripleStorage
 		if (ts_mem !is null)
 			ts_mem.define_predicate_as_multiple(predicate);
 
-		log.trace("define predicate [{}] as multiple", predicate);
+		log.trace("define predicate [%s] as multiple", predicate);
 	}
 
 	public void define_predicate_as_multilang(string predicate)
@@ -644,7 +648,7 @@ class TripleStorageMongoDB: TripleStorage
 		if (ts_mem !is null)
 			ts_mem.define_predicate_as_multilang(predicate);
 
-		log.trace("define predicate [{}] as multilang", predicate);
+		log.trace("define predicate [%s] as multilang", predicate);
 	}
 
 	public void set_fulltext_indexed_predicates(string predicate)
@@ -654,7 +658,7 @@ class TripleStorageMongoDB: TripleStorage
 		if (ts_mem !is null)
 			ts_mem.set_fulltext_indexed_predicates(predicate);
 
-		log.trace("set fulltext indexed predicate [{}]", predicate);
+		log.trace("set fulltext indexed predicate [%s]", predicate);
 	}
 
 	
@@ -1045,7 +1049,12 @@ class TripleStorageMongoDB: TripleStorage
 		bson_finish (&fields);
 		
 		mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
-
+		if (cursor is null)
+		{
+			log.trace("ex! getTriples:mongo_find, err=%s", mongo_error_str[conn.err]);
+			throw new Exception("getTriples:mongo_find, err=" ~ mongo_error_str[conn.err]);						
+		}
+		
 		TLIterator it = new TripleStorageMongoDBIterator(cursor);
 
 		bson_destroy(&fields);
@@ -1153,7 +1162,14 @@ class TripleStorageMongoDB: TripleStorage
 			StopWatch sw0;
 			sw0.start();
 	
-			mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 2000, 0, 0);
+			mongo_cursor* cursor;
+						
+			cursor = mongo_find(&conn, ns, &query, &fields, 2000, 0, 0);			
+			if (cursor is null)
+			{
+				log.trace("ex! getTriplesOfMask:mongo_find, err=%s", mongo_error_str[conn.err]);
+				throw new Exception("getTriplesOfMask:mongo_find, err=" ~ mongo_error_str[conn.err]);						
+			}
 
 			sw0.stop();
 

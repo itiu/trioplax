@@ -1,9 +1,9 @@
 Installation Instructions
 *************************
 
-compiling on ubuntu 10.10
+compiling on ubuntu 11.04
 
-install dmd 1.064
+install dmd 2.053
 
 linux:
  run build_with_dmd.sh

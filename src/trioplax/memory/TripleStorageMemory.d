@@ -448,21 +448,21 @@ class TripleStorageMemory: TripleStorage
 	{
 		predicate_as_multiple[predicate] = true;
 
-		log.trace("define predicate [{}] as multiple", predicate);
+		log.trace("define predicate [%s] as multiple", predicate);
 	}
 
 	public void define_predicate_as_multilang(string predicate)
 	{
 		multilang_predicates[predicate] = true;
 
-		log.trace("define predicate [{}] as multilang", predicate);
+		log.trace("define predicate [%s] as multilang", predicate);
 	}
 
 	public void set_fulltext_indexed_predicates(string predicate)
 	{
 		fulltext_indexed_predicates[predicate] = true;
 
-		log.trace("set fulltext indexed predicate [{}]", predicate);
+		log.trace("set fulltext indexed predicate [%s]", predicate);
 	}
 
 //	public void setPredicatesToS1PPOO(char[] P1, char[] P2, char[] _store_predicate_in_list_on_idx_s1ppoo)

@@ -81,7 +81,7 @@ return y ^ (x | ~z);
 
 version (D1)
 {
-    private static void ff(ref uint a, uint b, uint c, uint d, uint x, uint s, uint ac)
+    private static void ff(uint a, uint b, uint c, uint d, uint x, uint s, uint ac)
 {
 a += f(b,c,d) + x + ac;
 a = rotateLeft(a,s);
@@ -103,7 +103,7 @@ a += b;
 }
 version (D1)
 {
-    private static void gg(ref uint a, uint b, uint c, uint d, uint x, uint s, uint ac)
+    private static void gg(uint a, uint b, uint c, uint d, uint x, uint s, uint ac)
 {
 a += g(b,c,d) + x + ac;
 a = rotateLeft(a,s);
@@ -125,7 +125,7 @@ a += b;
 }
 version (D1)
 {
-    private static void hh(ref uint a, uint b, uint c, uint d, uint x, uint s, uint ac)
+    private static void hh(uint a, uint b, uint c, uint d, uint x, uint s, uint ac)
 {
 a += h(b,c,d) + x + ac;
 a = rotateLeft(a,s);
@@ -147,7 +147,7 @@ a += b;
 }
 version (D1)
 {
-    private static void ii(ref uint a, uint b, uint c, uint d, uint x, uint s, uint ac)
+    private static void ii(uint a, uint b, uint c, uint d, uint x, uint s, uint ac)
 {
 a += i(b,c,d) + x + ac;
 a = rotateLeft(a,s);
@@ -175,5 +175,5 @@ pms.abcd[1] = T_MASK ^ 271733878;
 pms.abcd[2] = T_MASK ^ 1732584193;
 pms.abcd[3] = 271733878;
 }
-void mongo_md5_append(mongo_md5_state_t* pms, mongo_md5_byte_t* data, int nbytes);
+void mongo_md5_append(mongo_md5_state_t* pms, const mongo_md5_byte_t* data, int nbytes);
 void mongo_md5_finish(mongo_md5_state_t* pms, mongo_md5_byte_t[16] digest);
