@@ -552,15 +552,7 @@ class TripleStorageMongoDB: TripleStorage
 		col = cast(char*) collection;
 		ns = cast(char*) (collection ~ ".simple");
 
-		buff = new char[32];
-
-		mongo_host_port opts;
-
-		strncpy(cast(char*) opts.host, host.ptr, 255);
-		opts.host[254] = '\0';
-		opts.port = port;
-
-		int err = mongo_connect(&conn, opts.host, opts.port);
+		int err = mongo_connect(&conn, host, port);
 		if(err != MONGO_OK)
 		{
 			log.trace("failed to connect to mongodb, err=%s", mongo_error_str[conn.err]);
