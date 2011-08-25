@@ -73,18 +73,18 @@ class TripleStorageMemoryIterator: TLIterator
 
 class TripleStorageMemory: TripleStorage
 {
-	bool[TwoKeys] POPO_list;
+	bool[FKeys] POPO_list;
 	string[string] P1P2_for_POPO;
 	string[string] P2P1_for_POPO;
 
-	List[FourKeys] iPOPO;
-	List[ThreeKeys] iSPO;
-	List[TwoKeys] iSP;
-	List[TwoKeys] iPO;
-	List[TwoKeys] iSO;
-	List[string] iS;
-	List[string] iP;
-	List[string] iO;
+	List[FKeys] iPOPO;
+	List[FKeys] iSPO;
+	List[FKeys] iSP;
+	List[FKeys] iPO;
+	List[FKeys] iSO;
+	List[FKeys] iS;
+	List[FKeys] iP;
+	List[FKeys] iO;
 	
 	private bool[char[]] predicate_as_multiple;
 	private bool[char[]] multilang_predicates;
@@ -138,7 +138,7 @@ class TripleStorageMemory: TripleStorage
 	{
 		//		log.trace("add triple into mem: %s", tt);
 
-		ThreeKeys spo = new ThreeKeys(tt.S, tt.P, tt.O);
+		FKeys spo = new FKeys(tt.S, tt.P, tt.O);
 
 		List apnpdr;
 		apnpdr = iSPO.get(spo, apnpdr);
@@ -155,12 +155,12 @@ class TripleStorageMemory: TripleStorage
 			return -1;
 		}
 
-		addIntoTwoIndex(iSP, tt.S, tt.P, tt);
-		addIntoTwoIndex(iPO, tt.P, tt.O, tt);
-		addIntoTwoIndex(iSO, tt.S, tt.O, tt);
-		addIntoOneIndex(iS, tt.S, tt);
-		addIntoOneIndex(iP, tt.P, tt);
-		addIntoOneIndex(iO, tt.O, tt);
+		addIntoIndex(iSP, tt, tt.S, tt.P);
+		addIntoIndex(iPO, tt, tt.P, tt.O);
+		addIntoIndex(iSO, tt, tt.S, tt.O);
+		addIntoIndex(iS, tt, tt.S);
+		addIntoIndex(iP, tt, tt.P);
+		addIntoIndex(iO, tt, tt.O);
 
 		return 1;
 	}
@@ -181,7 +181,7 @@ class TripleStorageMemory: TripleStorage
 		if(_S !is null && _P !is null && _O !is null)
 		{
 			//			log.trace ("#getTriples iSPO");
-			ThreeKeys spo = new ThreeKeys(_S, _P, _O);
+			FKeys spo = new FKeys(_S, _P, _O);
 
 			apnpdr = iSPO.get(spo, apnpdr);
 			//			log.trace ("#getTriples iSPO ok");
@@ -192,26 +192,27 @@ class TripleStorageMemory: TripleStorage
 		}
 		else if(_S !is null && _P !is null && _O is null)
 		{
-			TwoKeys sp = new TwoKeys(_S, _P);
+			FKeys sp = new FKeys(_S, _P);
 
 			apnpdr = iSP.get(sp, apnpdr);
 		}
 		else if(_S is null && _P !is null && _O !is null)
 		{
-			TwoKeys po = new TwoKeys(_P, _O);
+			FKeys po = new FKeys(_P, _O);
 
 			apnpdr = iPO.get(po, apnpdr);
 		}
 		else if(_S !is null && _P is null && _O !is null)
 		{
-			TwoKeys so = new TwoKeys(_S, _O);
+			FKeys so = new FKeys(_S, _O);
 
 			apnpdr = iSO.get(so, apnpdr);
 		}
 		else if(_S !is null && _P is null && _O is null)
 		{
 			//			log.trace ("#getTriples iS");
-			apnpdr = iS.get(_S, apnpdr);
+			FKeys s = new FKeys(_S);
+			apnpdr = iS.get(s, apnpdr);
 			//			log.trace ("#getTriples iS ok");
 			//			log.trace ("#getTriples apnpdr=%s", apnpdr);
 			//			log.trace ("#getTriples apnpdr.lst=%s", apnpdr.lst);
@@ -220,11 +221,13 @@ class TripleStorageMemory: TripleStorage
 		}
 		else if(_S is null && _P !is null && _O is null)
 		{
-			apnpdr = iP.get(_P, apnpdr);
+			FKeys p = new FKeys(_P);
+			apnpdr = iP.get(p, apnpdr);
 		}
 		else if(_S is null && _P is null && _O !is null)
 		{
-			apnpdr = iO.get(_O, apnpdr);
+			FKeys o = new FKeys(_O);
+			apnpdr = iO.get(o, apnpdr);
 		}
 
 		//		sw.stop();
@@ -259,7 +262,7 @@ class TripleStorageMemory: TripleStorage
 			//			log.trace("current POPO_list = %s", POPO_list);
 
 			// да
-			TwoKeys tpp = new TwoKeys(triples[0].P, triples[1].P);
+			FKeys tpp = new FKeys(triples[0].P, triples[1].P);
 			//	 проверить есть ли в списке заиндексированных двойных ключей
 			if((tpp in POPO_list) is null)
 			{
@@ -344,7 +347,7 @@ class TripleStorageMemory: TripleStorage
 						//						log.trace("можно добавлять в индекс");
 
 						// можно добавлять в индекс
-						addIntoFourIndex(iPOPO, P1, O1, P2, O2, tt);
+						addIntoIndex(iPOPO, tt, P1, O1, P2, O2);
 					}
 
 				}
@@ -355,12 +358,12 @@ class TripleStorageMemory: TripleStorage
 			//   произвести поиск по этому индексу   
 			// ! нужно учитывать порядок P1P2
 			//			log.trace("seek in iPOPO key %s, res: \n %s", key, res);
-			FourKeys key = new FourKeys(triples[1].P, triples[1].O, triples[0].P, triples[0].O);
+			FKeys key = new FKeys(triples[1].P, triples[1].O, triples[0].P, triples[0].O);
 			res = iPOPO.get(key, res);
 
 			if(res is null)
 			{
-				key = new FourKeys(triples[0].P, triples[0].O, triples[1].P, triples[1].O);
+				key = new FKeys(triples[0].P, triples[0].O, triples[1].P, triples[1].O);
 				res = iPOPO.get(key, res);
 			}
 			//			log.trace("seek in iPOPO key %s, res: \n %s", key, res);
@@ -426,7 +429,10 @@ class TripleStorageMemory: TripleStorage
 	{
 		List apnpdr;
 
-		apnpdr = iS.get(subject, apnpdr);
+		FKeys key = new FKeys (subject);
+		
+		
+		apnpdr = iS.get(key, apnpdr);
 
 		if(apnpdr !is null && apnpdr.array.length > 0)
 			return true;
@@ -448,21 +454,21 @@ class TripleStorageMemory: TripleStorage
 	{
 		predicate_as_multiple[predicate] = true;
 
-		log.trace("define predicate [%s] as multiple", predicate);
+		log.trace("TSM:define predicate [%s] as multiple", predicate);
 	}
 
 	public void define_predicate_as_multilang(string predicate)
 	{
 		multilang_predicates[predicate] = true;
 
-		log.trace("define predicate [%s] as multilang", predicate);
+		log.trace("TSM:define predicate [%s] as multilang", predicate);
 	}
 
 	public void set_fulltext_indexed_predicates(string predicate)
 	{
 		fulltext_indexed_predicates[predicate] = true;
 
-		log.trace("set fulltext indexed predicate [%s]", predicate);
+		log.trace("TSM:set fulltext indexed predicate [%s]", predicate);
 	}
 
 //	public void setPredicatesToS1PPOO(char[] P1, char[] P2, char[] _store_predicate_in_list_on_idx_s1ppoo)
@@ -488,10 +494,10 @@ class TripleStorageMemory: TripleStorage
 		writeln("iO.length=", iO.keys.length);
 	}
 
-	private void addIntoFourIndex(ref List[FourKeys] idx, string _key1, string _key2, string _key3, string _key4, Triple tt)
+	private void addIntoIndex(ref List[FKeys] idx, Triple tt, string _key1, string _key2 = null, string _key3 = null, string _key4 = null)
 	{
 		//		writeln("addIntoFourIndex=", tt);
-		FourKeys xx = new FourKeys(_key1, _key2, _key3, _key4);
+		FKeys xx = new FKeys(_key1, _key2, _key3, _key4);
 
 		List apnpdr;
 		apnpdr = idx.get(xx, apnpdr);
@@ -501,41 +507,6 @@ class TripleStorageMemory: TripleStorage
 			apnpdr = new List;
 			idx[xx] = apnpdr;
 			//			writeln("iPOPO.length=", idx.keys.length);
-		}
-		apnpdr.put(tt);
-	}
-
-	private void addIntoTwoIndex(ref List[TwoKeys] idx, string _key1, string _key2, Triple tt)
-	{
-		TwoKeys xx = new TwoKeys(_key1, _key2);
-
-		List apnpdr;
-		apnpdr = idx.get(xx, apnpdr);
-		if(apnpdr is null)
-		{
-			//                      writeln ("###");
-			apnpdr = new List;
-			idx[xx] = apnpdr;
-			//                      writeln ("iXX.length=", idx.keys.length);
-		}
-		apnpdr.put(tt);
-
-	}
-
-	private void addIntoOneIndex(ref List[string] idx, string _key1, Triple tt)
-	{
-		List apnpdr;
-
-		char[] key = new char[_key1.length];
-		key[0 .. $] = _key1[0 .. $];
-
-		//		log.trace ("add into mem: key=%s", key);
-
-		apnpdr = idx.get(cast(immutable) key, apnpdr);
-		if(apnpdr is null)
-		{
-			apnpdr = new List;
-			idx[cast(immutable) key] = apnpdr;
 		}
 		apnpdr.put(tt);
 	}

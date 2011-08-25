@@ -4,6 +4,8 @@ private import std.array;
 private import std.stdio;
 private import std.array: appender;
 private import std.format;
+import rt.util.hash;
+
 private import trioplax.Logger;
 
 Logger log;
@@ -28,9 +30,9 @@ class Triple
 	
 	this(string _S, string _P, string _O)
 	{
-		S = cast(immutable)new char[_S.length];
-		P = cast(immutable)new char[_P.length];
-		O = cast(immutable)new char[_O.length];
+		S = cast(string)new char[_S.length];
+		P = cast(string)new char[_P.length];
+		O = cast(string)new char[_O.length];
 		
 		(cast(char[])S)[] = _S[];
 		(cast(char[])P)[] = _P[];
@@ -39,9 +41,9 @@ class Triple
 
 	this(string _S, string _P, string _O, byte _lang)
 	{
-		S = cast(immutable)new char[_S.length];
-		P = cast(immutable)new char[_P.length];
-		O = cast(immutable)new char[_O.length];
+		S = cast(string)new char[_S.length];
+		P = cast(string)new char[_P.length];
+		O = cast(string)new char[_O.length];
 		
 		(cast(char[])S)[] = _S[];
 		(cast(char[])P)[] = _P[];
@@ -55,6 +57,23 @@ class Triple
 //		log.trace ("create triple %s", this);
 	}
 
+
+	hash_t toHash()
+	{
+		hash_t hh = 0;
+
+		if(S !is null)
+			hh += hashOf(S.ptr, S.length, 0);
+
+		if(P !is null)
+			hh += hashOf(P.ptr, P.length, 0);
+
+		if(O !is null)
+			hh += hashOf(O.ptr, O.length, 0);
+
+		return hh;
+	}
+	
 	
 	~this ()
 	{
@@ -78,7 +97,8 @@ class Triple
 		
 		auto writer = appender!string();
 
-		formattedWrite(writer, "%X %d %d<%s>%d<%s>%d<%s>", cast(void*)this, hhh, sS.length, sS, sP.length, sP, sO.length, sO);
+//		formattedWrite(writer, "%X %d %d<%s>%d<%s>%d<%s>", cast(void*)this, hhh, sS.length, sS, sP.length, sP, sO.length, sO);
+		formattedWrite(writer, "<%s><%s><%s>", sS, sP, sO);
 		
 		return writer.data;		
 //		return "<" ~ sS ~ ">"~sS.length~"<" ~ sP ~ "><" ~ sO ~ ">";
