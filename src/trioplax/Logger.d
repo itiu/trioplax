@@ -126,7 +126,10 @@ public class Logger
 		//	       StopWatch sw1; sw1.start();
 		auto writer = appender!string();
 
+		if (src.length > 0)
 		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ", year, month, day, hour, minute, second, milliseconds, src);
+		else
+			formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] ", year, month, day, hour, minute, second, milliseconds);
 
 		formattedWrite(writer, fmt, args);
 		writer.put(cast(char) 0);

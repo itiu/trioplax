@@ -74,10 +74,7 @@ class TripleStorageMemoryIterator: TLIterator
 class TripleStorageMemory: TripleStorage
 {
 	bool[FKeys] POPO_list;
-	string[string] P1P2_for_POPO;
-	string[string] P2P1_for_POPO;
 
-	List[FKeys] iPOPO;
 	List[FKeys] iSPO;
 	List[FKeys] iSP;
 	List[FKeys] iPO;
@@ -89,21 +86,6 @@ class TripleStorageMemory: TripleStorage
 	private bool[char[]] predicate_as_multiple;
 	private bool[char[]] multilang_predicates;
 	private bool[char[]] fulltext_indexed_predicates;	
-
-	void _tmp_print_iPOPO()
-	{
-		foreach(akey; iPOPO.keys)
-		{
-			log.trace("#iPOPO.key = %s", akey);
-
-			List ll = iPOPO[akey];
-			foreach(tt; ll.array)
-			{
-				log.trace("# tt=%s", tt);
-			}
-		}
-
-	}
 
 	void _tmp_print_iSPO()
 	{
@@ -136,8 +118,9 @@ class TripleStorageMemory: TripleStorage
 
 	public int addTriple(Triple tt)
 	{
-		//		log.trace("add triple into mem: %s", tt);
-
+		if (tt.S is null || tt.P is null || tt.O is null)
+			return 0;
+		
 		FKeys spo = new FKeys(tt.S, tt.P, tt.O);
 
 		List apnpdr;
@@ -151,7 +134,7 @@ class TripleStorageMemory: TripleStorage
 		}
 		else
 		{
-			log.trace("triple %s already exist in index", tt);
+//			log.trace("triple %s already exist in index", tt);
 			return -1;
 		}
 
@@ -162,6 +145,8 @@ class TripleStorageMemory: TripleStorage
 		addIntoIndex(iP, tt, tt.P);
 		addIntoIndex(iO, tt, tt.O);
 
+		log.trace("add triple into mem: %s, spo.length=%d", tt, iSPO.length);
+		
 		return 1;
 	}
 
@@ -254,129 +239,6 @@ class TripleStorageMemory: TripleStorage
 		sw.start();
 
 		List res = null;
-
-		// это двойной ключ PPOO ?
-		if(triples.length == 2)
-		{
-			//			log.trace("getTriplesOfMask > %s", triples);
-			//			log.trace("current POPO_list = %s", POPO_list);
-
-			// да
-			FKeys tpp = new FKeys(triples[0].P, triples[1].P);
-			//	 проверить есть ли в списке заиндексированных двойных ключей
-			if((tpp in POPO_list) is null)
-			{
-				// TODO в индексы следует включить факты имеющие предикаты in reading_predicates
-				log.trace("построим индекс для [%s][%s]", triples[0].P, triples[1].P);
-
-				// нет, сохранить в списке этот ключ
-				POPO_list[tpp] = true;
-				log.trace("POPO_list = %s", POPO_list);
-				// сохранить в списках позволяющих понять порядк P1P2 в индексе
-				P1P2_for_POPO[triples[0].P] = triples[1].P;
-				P2P1_for_POPO[triples[1].P] = triples[0].P;
-				// и произвести построение по нему индекса
-				log.trace("P1P2_for_POPO = %s", P1P2_for_POPO);
-				log.trace("P2P1_for_POPO = %s", P2P1_for_POPO);
-
-				//	перебор всех фактов из индекса iSPO и добавление требуемых в индекс PPOO
-				foreach(ol; iSPO.values)
-				{
-					Triple tt = ol.array[0];
-					//					log.trace("берем tt=%s", tt);
-
-					string P1;
-					string O1;
-					string P2;
-					string O2;
-
-					string* _P2 = (tt.P in P2P1_for_POPO);
-
-					//					log.trace("tt.P=%s", tt.P);
-
-					// при добавлении нужно понять какой из P добавляется, P1 или P2
-					// нужно проверить есть ли недостающий факт для данного субьекта с предикатом PX
-					// если есть то можно добавлять в индекс 
-					// если такого факта не нашлось, то пропускаем добавление в iPPOO;													
-					if(_P2 !is null)
-					{
-
-						P2 = *_P2;
-						P1 = tt.P;
-						O1 = tt.O;
-
-						// нужно найти O2
-//@@@						List res1 = getTriples(tt.S, P2, null);
-
-//@@@						if(res1 !is null)
-//@@@						{
-							//							log.trace("#A");
-							//							log.trace("P2 = %s", *_P2);
-
-							//							log.trace("1. res1 = %s", res1);
-//@@@							O2 = res1.array[0].O;
-//@@@						}
-					}
-					else
-					{
-						string* _P1 = (tt.P in P1P2_for_POPO);
-
-						if(_P1 !is null)
-						{
-							P1 = *_P1;
-							P2 = tt.P;
-							O2 = tt.O;
-
-							// нужно найти O1
-//@@@							List res1 = getTriples(tt.S, P1, null);
-
-//@@@							if(res1 !is null)
-//@@@							{
-								//								log.trace("#B");
-								//								log.trace("P1 = %s", *_P1);
-								//								log.trace("2. res1 = %s", res1);
-
-//@@@								O1 = res1.array[0].O;
-//@@@							}
-
-						}
-					}
-
-					if(P1 !is null && P2 !is null && O1 !is null && O2 !is null)
-					{
-						//						log.trace("можно добавлять в индекс");
-
-						// можно добавлять в индекс
-						addIntoIndex(iPOPO, tt, P1, O1, P2, O2);
-					}
-
-				}
-
-				//				_tmp_print_iPOPO();
-				//				log.trace("in iPOPO: \n %s", iPOPO);
-			}
-			//   произвести поиск по этому индексу   
-			// ! нужно учитывать порядок P1P2
-			//			log.trace("seek in iPOPO key %s, res: \n %s", key, res);
-			FKeys key = new FKeys(triples[1].P, triples[1].O, triples[0].P, triples[0].O);
-			res = iPOPO.get(key, res);
-
-			if(res is null)
-			{
-				key = new FKeys(triples[0].P, triples[0].O, triples[1].P, triples[1].O);
-				res = iPOPO.get(key, res);
-			}
-			//			log.trace("seek in iPOPO key %s, res: \n %s", key, res);
-
-			if(res is null)
-			{
-				//				log.trace("iPOPO.length=%d iPOPO=%s", iPOPO.length, iPOPO.keys);
-			}
-		}
-		else
-		{
-//@@@			res = getTriples(triples[0].S, triples[0].P, triples[0].O);
-		}
 
 		List outl = new List;
 

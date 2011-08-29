@@ -49,15 +49,19 @@ class TripleStorageMongoDBIterator: TLIterator
 	bool is_query_all_predicates = false;
 	bool is_get_all = false;
 	bool is_get_all_reifed = false;
-
-	this(mongo_cursor* _cursor)
+	
+	TripleStorageMemory ts_in_mem;
+	
+	this(mongo_cursor* _cursor, TripleStorageMemory _ts_in_mem = null)
 	{
 		cursor = _cursor;
+		ts_in_mem = _ts_in_mem;
 	}
 
-	this(mongo_cursor* _cursor, ref byte[char[]] _reading_predicates)
+	this(mongo_cursor* _cursor, ref byte[char[]] _reading_predicates, TripleStorageMemory _ts_in_mem = null)
 	{
 		cursor = _cursor;
+		ts_in_mem = _ts_in_mem;
 		reading_predicates = _reading_predicates;
 
 		if (reading_predicates.length > 0)
@@ -175,6 +179,10 @@ class TripleStorageMongoDBIterator: TLIterator
 									Triple tt000 = new Triple(S, P, O);
 								
 									result = dg(tt000);
+									
+									if (ts_in_mem !is null)
+										ts_in_mem.addTriple (tt000);
+									
 									if(result)
 										return -1;
 								}
@@ -195,23 +203,29 @@ class TripleStorageMongoDBIterator: TLIterator
 										Triple tt0 = new Triple(r1_reif_triples[0].S, "a", "rdf:Statement");
 
 										result = dg(tt0);
+										if (ts_in_mem !is null)
+											ts_in_mem.addTriple (tt0);										
 										if(result)
 											return 1;
 
 										tt0 = new Triple(r1_reif_triples[0].S, "rdf:subject", S);
 									
 										result = dg(tt0);
+										if (ts_in_mem !is null)
+											ts_in_mem.addTriple (tt0);
 										if(result)
 											return 1;
 
 										tt0 = new Triple(r1_reif_triples[0].S, "rdf:predicate", P);
-
+										if (ts_in_mem !is null)
+											ts_in_mem.addTriple (tt0);
 										result = dg(tt0);
 										if(result)
 											return 1;
 
 										tt0 = new Triple(r1_reif_triples[0].S, "rdf:object", O);
-
+										if (ts_in_mem !is null)
+											ts_in_mem.addTriple (tt0);
 										result = dg(tt0);
 										if(result)
 											return 1;
@@ -223,6 +237,8 @@ class TripleStorageMongoDBIterator: TLIterator
 												log.trace("reif : %s", tt);
 
 											result = dg(tt);
+											if (ts_in_mem !is null)
+												ts_in_mem.addTriple (tt);
 											if(result)
 												return 1;
 										}
@@ -271,6 +287,8 @@ class TripleStorageMongoDBIterator: TLIterator
 										{
 											Triple tt0 = new Triple(S, _name_key, A_value);
 											result = dg(tt0);
+											if (ts_in_mem !is null)
+												ts_in_mem.addTriple (tt0);
 											if(result)
 												return 1;
 										}
@@ -513,20 +531,22 @@ class TripleStorageMongoDBIterator: TLIterator
 	}
 }
 
+struct CacheInfo
+{
+	int count = 0;
+	long lifetime;
+	bool isCached = false;
+}
+
 class TripleStorageMongoDB: TripleStorage
 {
 	string query_log_filename = "triple-storage-io";
-//	private FILE* query_log = null;
 
 	private long total_count_queries = 0;
 
 	private char[] buff = null;
 	private char* col = cast(char*) "coll1";
 	private char* ns = cast(char*) "coll1.simple";
-
-//	private int count_all_allocated_lists = 0;
-//	private int max_length_list = 0;
-//	private int max_use_pull = 0;
 
 	private bool[char[]] predicate_as_multiple;
 	private bool[char[]] multilang_predicates;
@@ -536,13 +556,10 @@ class TripleStorageMongoDB: TripleStorage
 
 	private mongo conn;
 
-//	private char[] P1;
-//	private char[] P2;
-//	private char[] store_predicate_in_list_on_idx_s1ppoo;
-
 	byte caching_strategy;
 	TripleStorageMemory ts_in_mem;
-	int [hash_t] caching_queryes;
+	CacheInfo* [hash_t] queryes;
+	int count_cached_queryes;
 
 	this(string host, int port, string collection, byte _caching_strategy = caching_type.NONE)
 	{
@@ -968,42 +985,35 @@ class TripleStorageMongoDB: TripleStorage
 			log.trace("total time add triple: %d[µs]", t);
 		}
 
-//		if(ts_mem !is null)
-//		{
-//			ts_mem.addTriple(tt);
-//		}
+		if(ts_in_mem !is null)
+		{
+			ts_in_mem.addTriple(tt);
+		}
 
 		return 0;
 	}
 
-	//
-	public void print_stat()
-	{
-//		log.trace("TripleStorage:stat: max used pull={}, max length list={}", max_use_pull, max_length_list);
-	}
-
-	private void add_fulltext_to_query(string fulltext_param, bson* bb)
-	{
-		_bson_append_start_object(bb, "_keywords");
-		_bson_append_start_array(bb, "$all");
-
-		string[] values = split(fulltext_param, ",");
-		foreach(val; values)
-		{
-			_bson_append_regex(bb, " ", val, "imx");
-		}
-
-		bson_append_finish_object(bb);
-		bson_append_finish_object(bb);
-	}
-
 	public TLIterator getTriples(string s, string p, string o)
 	{
-//		if(ts_mem !is null)
-//		{
-//			TLIterator res = ts_mem.getTriples(s, p, o);
-//			return res;
-//		}
+		CacheInfo* ci;
+		
+		if(ts_in_mem !is null)
+		{
+			hash_t hash_of_query = get_hash_of_spo (s, p, o);
+		
+			if (hash_of_query in queryes)
+			{
+				ci = queryes[hash_of_query];
+				ci.count ++; 
+//				log.trace ("query [<%s><%s><%s>] count requests [%d], count queries = %d", s, p, o, ci.count, queryes.length);
+			}
+			else
+			{
+				CacheInfo* ci = new CacheInfo;
+				ci.count = 1;
+				queryes[hash_of_query] = ci;
+			}
+		}
 
 //		StopWatch sw;
 //		sw.start();
@@ -1046,49 +1056,52 @@ class TripleStorageMongoDB: TripleStorage
 			throw new Exception("getTriples:mongo_find, err=" ~ mongo_error_str[conn.err]);						
 		}
 		
-		TLIterator it = new TripleStorageMongoDBIterator(cursor);
+		TLIterator it;
+		
+		if (ci !is null && ci.count > 100)
+		{
+			// такой запрос кешируем
+			 it = new TripleStorageMongoDBIterator(cursor, ts_in_mem);
+			 if (ci.isCached == false)
+			 {
+				 ci.isCached = true;
+				 count_cached_queryes ++;
+				 log.trace ("query count queries = %d, count_cached_queryes=%d", queryes.length, count_cached_queryes);								 
+			 }
+			 
+		}
+		else
+		{
+			 it = new TripleStorageMongoDBIterator(cursor);								
+		}							
 
 		bson_destroy(&fields);
 		bson_destroy(&query);
 
 		return it;
 	}
-
-	private hash_t get_hash_of_query (ref Triple[] mask_triples)
-	{
-		hash_t res = 0;
-		
-		for(short i = 0; i < mask_triples.length; i++)
-		{
-			res += mask_triples[i].toHash();
-		}
-		
-		return res;
-	}
 	
 	public TLIterator getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates)
 	{
+		CacheInfo* ci;
+		
 		if(ts_in_mem !is null)
 		{
 			hash_t hash_of_query = get_hash_of_query (mask_triples);
 		
-			if (hash_of_query in caching_queryes)
+			if (hash_of_query in queryes)
 			{
-				writeln ("this query [", mask_triples, "]  in cache ", caching_queryes[hash_of_query]," times !\n");
-				caching_queryes[hash_of_query]++;
+				ci = queryes[hash_of_query];
+				ci.count ++; 
+//				log.trace ("query [%s] count requests [%d], count queries = %d", mask_triples, ci.count, queryes.length);								 				
 			}
 			else
 			{
-				caching_queryes[hash_of_query] = 1;
+				CacheInfo* ci = new CacheInfo;
+				ci.count = 1;
+				queryes[hash_of_query] = ci;
 			}
 		}
-//		if(ts_mem !is null && mask_triples.length < 3)
-//			return ts_mem.getTriplesOfMask(mask_triples, reading_predicates);
-
-		//		trace_msg[0] = 1;
-		//trace_msg[0][5] = 1;
-		//		trace_msg[1][1] = 0;
-		//		trace_msg[2][0] = 0;
 
 		int count_of_reifed_data = 0;
 
@@ -1133,8 +1146,9 @@ class TripleStorageMongoDB: TripleStorage
 					add_to_query(p, o, &query);
 				}
 			}
-
-			reading_predicates["@"] = field.GET;
+			
+			if(ts_in_mem !is null)
+				reading_predicates["@"] = field.GET;
 
 			
 			//			int count_readed_fields = 0;
@@ -1177,7 +1191,7 @@ class TripleStorageMongoDB: TripleStorage
 			}
 
 			StopWatch sw0;
-			sw0.start();
+			sw0.start();		
 	
 			mongo_cursor* cursor;
 						
@@ -1198,11 +1212,28 @@ class TripleStorageMongoDB: TripleStorage
 			if(t0 > 500)
 			{
 				char[] ss = bson_to_string(&query);
-				log.trace("getTriplesOfMask:QUERY:\n %s", ss);
-				log.trace("getTripleOfMask: mongo_find: %d[µs]", t0);
+				log.trace("getTriplesOfMask: QUERY:\n %s", ss);
+				log.trace("getTriplesOfMask: mongo_find: %d[µs]", t0);
 			}
 
-			TLIterator it = new TripleStorageMongoDBIterator(cursor, reading_predicates);
+			TLIterator it;
+			
+			if (ci !is null && ci.count > 100)
+			{
+				// такой запрос кешируем
+				 it = new TripleStorageMongoDBIterator(cursor, reading_predicates, ts_in_mem);				
+				 if (ci.isCached == false)
+				 {
+					 ci.isCached = true;
+					 count_cached_queryes ++;
+					 log.trace ("query count queries = %d, count_cached_queryes=%d", queryes.length, count_cached_queryes);								 
+				 }
+
+			}
+			else
+			{
+				 it = new TripleStorageMongoDBIterator(cursor, reading_predicates);								
+			}							
 			
 			bson_destroy(&fields);
 			bson_destroy(&query);
@@ -1260,6 +1291,13 @@ class TripleStorageMongoDB: TripleStorage
 		if(trace_msg[1031] == 1)
 			log.trace("add_to_query return");
 	}
+	
+	//
+	public void print_stat()
+	{
+//		log.trace("TripleStorage:stat: max used pull={}, max length list={}", max_use_pull, max_length_list);
+	}
+	
 }
 
 char[] getString(char* s)
@@ -1367,4 +1405,48 @@ string fromStringz(char* s)
 {
 	char[] res = s ? s[0 .. strlen(s)] : null;
 	return cast(string) res;
+}
+
+
+private void add_fulltext_to_query(string fulltext_param, bson* bb)
+{
+	_bson_append_start_object(bb, "_keywords");
+	_bson_append_start_array(bb, "$all");
+
+	string[] values = split(fulltext_param, ",");
+	foreach(val; values)
+	{
+		_bson_append_regex(bb, " ", val, "imx");
+	}
+
+	bson_append_finish_object(bb);
+	bson_append_finish_object(bb);
+}
+
+private hash_t get_hash_of_spo (string S, string P, string O)
+{		
+	hash_t res = 0;
+	
+	if (S !is null)
+		res = hashOf(S.ptr, S.length, 0);
+
+	if (P !is null)
+		res += hashOf(P.ptr, P.length, 0);
+	
+	if (O !is null)
+		res += hashOf(O.ptr, O.length, 0);
+	
+	return res;
+}
+
+private hash_t get_hash_of_query (ref Triple[] mask_triples)
+{
+	hash_t res = 0;
+	
+	for(short i = 0; i < mask_triples.length; i++)
+	{
+		res += mask_triples[i].toHash();
+	}
+	
+	return res;
 }
