@@ -216,10 +216,7 @@ class TripleStorageMemory: TripleStorage
 		}
 
 		//		sw.stop();
-		//		version(dmd2_053)
-		//			long t = cast(long) sw.peek().usecs;
-		//		else
-		//			long t = cast(long) sw.peek().microseconds;
+		//		long t = cast(long) sw.peek().usecs;
 
 		//		if(t > 0)
 		//		{
@@ -274,10 +271,7 @@ class TripleStorageMemory: TripleStorage
 		//		log.trace("ok");
 
 		sw.stop();
-		version(dmd2_053)
-			long t = cast(long) sw.peek().usecs;
-		else
-			long t = cast(long) sw.peek().microseconds;
+		long t = cast(long) sw.peek().usecs;
 
 		if(t > 0)
 		{
@@ -292,8 +286,7 @@ class TripleStorageMemory: TripleStorage
 		List apnpdr;
 
 		FKeys key = new FKeys (subject);
-		
-		
+				
 		apnpdr = iS.get(key, apnpdr);
 
 		if(apnpdr !is null && apnpdr.array.length > 0)
