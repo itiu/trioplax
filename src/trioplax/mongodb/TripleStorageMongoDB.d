@@ -601,38 +601,6 @@ class TripleStorageMongoDB: TripleStorage
 		}
 	}
 
-	private void add_triple_to_cache(string _S, string _P, string _O, ref List list)
-	{
-		//		writeln("s=", S, ", p=", P, ", o=", O);
-		byte lang;
-		string O;
-		string[] o_tags = std.string.split(_O, "@");
-
-		if(o_tags[].length > 1)
-		{
-			O = o_tags[0];
-
-			if(o_tags[1] == "ru")
-				lang = _RU;
-			if(o_tags[1] == "en")
-				lang = _EN;
-		} else
-		{
-			O = _O;
-			lang = _NONE;
-		}
-
-		_tmp_hhh++;
-		Triple triple = new Triple(_S, _P, O, lang);
-		triple.hhh = _tmp_hhh;
-
-		//		ts_mem.addTriple(triple);
-	}
-
-	//	public void set_cache()
-	//	{
-	//	}
-
 	public void set_log_query_mode(bool on_off)
 	{
 		log_query = on_off;
@@ -988,6 +956,10 @@ class TripleStorageMongoDB: TripleStorage
 			{
 				ci = queryes[hash_of_query];
 				ci.count++;
+
+				if(ci.isCached == true)
+					return ts_in_mem.getTriples(s, p, o);
+
 				//				log.trace ("query [<%s><%s><%s>] count requests [%d], count queries = %d", s, p, o, ci.count, queryes.length);
 			} else
 			{
@@ -1007,26 +979,24 @@ class TripleStorageMongoDB: TripleStorage
 		bson query;
 		bson fields;
 
+		bson_init(&query);
+		bson_init(&fields);
+
+		if(s !is null)
 		{
-			bson_init(&query);
-			bson_init(&fields);
-
-			if(s !is null)
-			{
-				_bson_append_string(&query, "@", s);
-			}
-
-			if(p !is null && o !is null)
-			{
-				_bson_append_string(&query, p, o);
-			}
-
-			//			bson_append_int(&bb2, cast(char*)"@", 1);
-			//			if (p !is null)
-			//			{
-			//				bson_append_stringA(&bb2, p, cast(char[]) "1");
-			//			}
+			_bson_append_string(&query, "@", s);
 		}
+
+		if(p !is null && o !is null)
+		{
+			_bson_append_string(&query, p, o);
+		}
+
+		//			bson_append_int(&bb2, cast(char*)"@", 1);
+		//			if (p !is null)
+		//			{
+		//				bson_append_stringA(&bb2, p, cast(char[]) "1");
+		//			}
 
 		bson_finish(&query);
 		bson_finish(&fields);
@@ -1043,12 +1013,17 @@ class TripleStorageMongoDB: TripleStorage
 		if(ts_in_mem !is null && need_caching(ci, s, p, o))
 		{
 			// такой запрос кешируем
-			it = new TripleStorageMongoDBIterator(cursor, ts_in_mem);
 			if(ci.isCached == false)
 			{
+				it = new TripleStorageMongoDBIterator(cursor, ts_in_mem);
+
 				ci.isCached = true;
 				count_cached_queryes++;
+				log.trace("caching query [<%s><%s><%s>]", s, p, o);
 				log.trace("query count queries = %d, count_cached_queryes=%d", queryes.length, count_cached_queryes);
+			} else
+			{
+				log.trace("mongodb:getTriples:*^&*&%%&$^%#%@");
 			}
 
 		} else
@@ -1064,6 +1039,14 @@ class TripleStorageMongoDB: TripleStorage
 
 	public TLIterator getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates)
 	{
+		if(mask_triples !is null && mask_triples.length == 2 && mask_triples[0].S !is null && mask_triples[0].P is null && mask_triples[0].O is null && mask_triples[1].S is null && mask_triples[1].P !is null && mask_triples[1].O !is null)
+		{
+			mask_triples[0].P = mask_triples[1].P; 
+			mask_triples[0].O = mask_triples[1].O;
+			mask_triples.length = 1;
+//			log.trace("!!!");
+		}
+
 		CacheInfo* ci;
 
 		if(ts_in_mem !is null)
@@ -1074,7 +1057,7 @@ class TripleStorageMongoDB: TripleStorage
 			{
 				ci = queryes[hash_of_query];
 				ci.count++;
-				//				log.trace ("query [%s] count requests [%d], count queries = %d", mask_triples, ci.count, queryes.length);								 				
+				//				log.trace ("caching query [%s] count requests [%d], count queries = %d", mask_triples, ci.count, queryes.length);								 				
 			} else
 			{
 				CacheInfo* ci = new CacheInfo;
@@ -1183,7 +1166,7 @@ class TripleStorageMongoDB: TripleStorage
 
 			long t0 = cast(long) sw0.peek().usecs;
 
-			if(t0 > 500)
+			if(t0 > 5000)
 			{
 				char[] ss = bson_to_string(&query);
 				log.trace("getTriplesOfMask: QUERY:\n %s", ss);
@@ -1195,12 +1178,17 @@ class TripleStorageMongoDB: TripleStorage
 			if(ts_in_mem !is null && need_caching(ci, mask_triples))
 			{
 				// такой запрос кешируем
-				it = new TripleStorageMongoDBIterator(cursor, reading_predicates, ts_in_mem);
 				if(ci.isCached == false)
 				{
+					it = new TripleStorageMongoDBIterator(cursor, reading_predicates, ts_in_mem);
+
 					ci.isCached = true;
 					count_cached_queryes++;
+					log.trace("caching query [%s]", mask_triples);
 					log.trace("query count queries = %d, count_cached_queryes=%d", queryes.length, count_cached_queryes);
+				} else
+				{
+					log.trace("mongodb:getMaskTriples:*^&*&%%&$^%#%@");
 				}
 
 			} else
@@ -1421,11 +1409,13 @@ private hash_t get_hash_of_query(ref Triple[] mask_triples)
 
 private bool need_caching(CacheInfo* ci, string s, string p, string O)
 {
-	if(ci !is null && ci.count > 100)
+//	log.trace("need_caching ? query [<%s><%s><%s>] %d", s, p, O, ci !is null ? ci.count : -1);
+	if(ci !is null && ci.isCached == false && ci.count > 100)
 	{
 		if(O !is null && O[0] == '^')
 			return false;
 
+//		log.trace("yes");
 		return true;
 	}
 	return false;
@@ -1433,7 +1423,8 @@ private bool need_caching(CacheInfo* ci, string s, string p, string O)
 
 private bool need_caching(CacheInfo* ci, ref Triple[] mask_triples)
 {
-	if(ci !is null && ci.count > 100)
+//	log.trace("need_caching ? query [%s] %d ci=%x", mask_triples, ci !is null ? ci.count : -1, ci);
+	if(ci !is null && ci.isCached == false && ci.count > 100 && mask_triples.length == 1)
 	{
 
 		for(short i = 0; i < mask_triples.length; i++)
@@ -1442,6 +1433,7 @@ private bool need_caching(CacheInfo* ci, ref Triple[] mask_triples)
 				return false;
 		}
 
+//		log.trace("yes");
 		return true;
 	}
 	return false;

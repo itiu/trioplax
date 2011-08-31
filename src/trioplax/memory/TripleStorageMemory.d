@@ -159,7 +159,7 @@ class TripleStorageMemory: TripleStorage
 		//		StopWatch sw;
 		//		sw.start();
 
-		//		log.trace("#getTriples [%s] [%s] [%s]", _S, _P, _O);
+		log.trace("getTriples from mem [%s] [%s] [%s]", _S, _P, _O);
 
 		List apnpdr;
 
