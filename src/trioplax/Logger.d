@@ -12,6 +12,16 @@ import std.c.linux.linux;
 
 byte trace_msg[1100];
 
+version (X86_64)
+{
+    alias long _time;
+}
+else
+{
+    alias int _time;
+}
+
+
 public class Logger
 {
 	private int count = 0;
@@ -38,7 +48,7 @@ public class Logger
 	private void open_new_file ()
 	{
 		count = 0;
-		int tt = time(null);
+		_time tt = time(null);
 		tm* ptm = localtime(&tt);
 		int year = ptm.tm_year + 1900;
 		int month = ptm.tm_mon;
@@ -71,7 +81,7 @@ public class Logger
 		else
 			str_io = "OUTPUT";
 			
-		int tt = time(null);
+		_time tt = time(null);
 		tm* ptm = localtime(&tt);
 		int year = ptm.tm_year + 1900;
 		int month = ptm.tm_mon;
@@ -106,7 +116,7 @@ public class Logger
 
 	string trace(Char, A...)(in Char[] fmt, A args)
 	{
-		int tt = time(null);
+		_time tt = time(null);
 		tm* ptm = localtime(&tt);
 		int year = ptm.tm_year + 1900;
 		int month = ptm.tm_mon;
