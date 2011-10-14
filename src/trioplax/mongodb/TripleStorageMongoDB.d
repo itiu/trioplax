@@ -878,7 +878,7 @@ class TripleStorageMongoDB: TripleStorage
 			//			bson_buffer* sub1 = bson_append_start_object(sub, "_keywords");
 			//			bson_buffer* sub2 = bson_append_start_array(sub1, cast(char*) "$each");			
 
-			char[] l_o = cast(char[]) tolower(tt.O);
+			char[] l_o = cast(char[]) toLower(tt.O);
 
 			if(l_o.length > 2)
 			{
