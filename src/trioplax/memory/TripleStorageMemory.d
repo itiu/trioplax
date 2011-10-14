@@ -31,7 +31,7 @@ class List
 		lst[tt] = true;
 	}
 
-	string toString()
+	override string toString()
 	{
 		auto writer = appender!string();
 

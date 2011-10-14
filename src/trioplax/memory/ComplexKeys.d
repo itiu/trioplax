@@ -51,7 +51,7 @@ class FKeys
 		count = 4;
 	}
 
-	hash_t toHash()
+	override hash_t toHash()
 	{
 		hash_t hh = 0;
 
@@ -70,7 +70,7 @@ class FKeys
 		return hh;
 	}
 
-	bool opEquals(Object o)
+	override bool opEquals(Object o)
 	{
 		bool res = false;
 		FKeys f = cast(FKeys) o;
@@ -107,7 +107,7 @@ class FKeys
 		return res;
 	}
 
-	int opCmp(Object o)
+	override int opCmp(Object o)
 	{
 		bool res;
 		
@@ -145,7 +145,7 @@ class FKeys
 		return tres;
 	}
 
-	string toString()
+	override string toString()
 	{
 		return cast(string) ("{" ~ key1 ~ "}{" ~ key2 ~ "}{" ~ key3 ~ "}{" ~ key4 ~ "}");
 	}

@@ -58,7 +58,7 @@ class Triple
 	}
 
 
-	hash_t toHash()
+	override hash_t toHash()
 	{
 		hash_t hh = 0;
 
@@ -80,7 +80,7 @@ class Triple
 //		log.trace ("destroy triple %s", this);
 	}
 	
-	string toString()
+	override string toString()
 	{
 		string sS = S;
 		string sP = P;
