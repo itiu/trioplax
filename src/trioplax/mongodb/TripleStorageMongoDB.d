@@ -28,7 +28,7 @@ private import mongo;
 private import bson_h;
 private import bson;
 
-private int MAX_SIZE_READ_RECORDS = 6000;
+private int MAX_SIZE_READ_RECORDS = 1000;
 
 Logger log;
 
@@ -658,7 +658,7 @@ class TripleStorageMongoDB: TripleStorage
 	{
 		try
 		{
-			writeln("remove ", s);
+//			writeln("remove ", s);
 
 			bson cond;
 
