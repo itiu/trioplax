@@ -51,7 +51,7 @@ public class Logger
 		_time tt = time(null);
 		tm* ptm = localtime(&tt);
 		int year = ptm.tm_year + 1900;
-		int month = ptm.tm_mon;
+		int month = ptm.tm_mon + 1;
 		int day = ptm.tm_mday;
 		int hour = ptm.tm_hour;
 		int minute = ptm.tm_min;
@@ -84,7 +84,7 @@ public class Logger
 		_time tt = time(null);
 		tm* ptm = localtime(&tt);
 		int year = ptm.tm_year + 1900;
-		int month = ptm.tm_mon;
+		int month = ptm.tm_mon + 1;
 		int day = ptm.tm_mday;
 		int hour = ptm.tm_hour;
 		int minute = ptm.tm_min;
@@ -119,7 +119,7 @@ public class Logger
 		_time tt = time(null);
 		tm* ptm = localtime(&tt);
 		int year = ptm.tm_year + 1900;
-		int month = ptm.tm_mon;
+		int month = ptm.tm_mon + 1;
 		int day = ptm.tm_mday;
 		int hour = ptm.tm_hour;
 		int minute = ptm.tm_min;
@@ -137,9 +137,9 @@ public class Logger
 		auto writer = appender!string();
 
 		if (src.length > 0)
-		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ", year, month, day, hour, minute, second, milliseconds, src);
+		    formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ", year, month, day, hour, minute, second, milliseconds, src);
 		else
-			formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] ", year, month, day, hour, minute, second, milliseconds);
+		    formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] ", year, month, day, hour, minute, second, milliseconds);
 
 		formattedWrite(writer, fmt, args);
 		writer.put(cast(char) 0);

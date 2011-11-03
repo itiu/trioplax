@@ -1088,12 +1088,16 @@ class TripleStorageMongoDB: TripleStorage
 
 			for(short i = 0; i < mask_triples.length; i++)
 			{
-				if(trace_msg[1002] == 1)
-					log.trace("getTriplesOfMask i=%d", i);
-
 				string s = mask_triples[i].S;
 				string p = mask_triples[i].P;
 				string o = mask_triples[i].O;
+
+				if(trace_msg[1002] == 1)
+				{
+					log.trace("getTriplesOfMask i=%d <%s><%s><%s>", i, s, p, o);
+					if (o is null)
+					    log.trace ("o is null");
+				}
 
 				if(s !is null && s.length > 0)
 				{
@@ -1103,7 +1107,7 @@ class TripleStorageMongoDB: TripleStorage
 				if(p !is null && p == "query:fulltext")
 				{
 					add_fulltext_to_query(o, &query);
-				} else if(p !is null && o !is null && o.length > 0)
+				} else if(p !is null /*&& o !is null && o.length > 0*/)
 				{
 					add_to_query(p, o, &query);
 				}
