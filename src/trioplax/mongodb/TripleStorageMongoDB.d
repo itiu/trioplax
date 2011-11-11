@@ -867,6 +867,8 @@ class TripleStorageMongoDB: TripleStorage
 		//		log.trace ("query FT %s", bson_to_string (&op));
 		mongo_update(&conn, ns, &cond, &op, 1);
 
+		bson_destroy(&op);
+		
 		// добавим данные для полнотекстового поиска
 		char[][] aaa;
 
@@ -896,6 +898,8 @@ class TripleStorageMongoDB: TripleStorage
 				}
 
 				aaa = split(l_o, " ");
+				
+				bson_destroy(&op);
 
 				bson_init(&op);
 				_bson_append_start_object(&op, "$addToSet");
@@ -916,6 +920,8 @@ class TripleStorageMongoDB: TripleStorage
 
 				bson_finish(&op);
 				mongo_update(&conn, ns, &cond, &op, 1);
+				
+				bson_destroy(&op);				
 			}
 		}
 
@@ -1081,6 +1087,14 @@ class TripleStorageMongoDB: TripleStorage
 			bson query;
 			bson fields;
 
+			if(mask_triples.length == 0)
+			{
+				if(trace_msg[1022] == 1)
+					log.trace("getTriplesOfMask:mask_triples.length == 0, return");
+
+				return null;
+			}
+			
 			bson_init(&query);
 			bson_init(&fields);
 
@@ -1144,14 +1158,6 @@ class TripleStorageMongoDB: TripleStorage
 				char[] ss = bson_to_string(&query);
 				log.trace("getTriplesOfMask:QUERY:\n %s", ss);
 				//				log.trace("---- readed fields=%s", reading_predicates);
-			}
-
-			if(mask_triples.length == 0)
-			{
-				if(trace_msg[1022] == 1)
-					log.trace("getTriplesOfMask:mask_triples.length == 0, return");
-
-				return null;
 			}
 
 			StopWatch sw0;
