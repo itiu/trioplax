@@ -28,8 +28,6 @@ private import mongo;
 private import bson_h;
 private import bson;
 
-private int MAX_SIZE_READ_RECORDS = 1000;
-
 Logger log;
 
 enum caching_type: byte
@@ -950,7 +948,7 @@ class TripleStorageMongoDB: TripleStorage
 		return 0;
 	}
 
-	public TLIterator getTriples(string s, string p, string o)
+	public TLIterator getTriples(string s, string p, string o, int MAX_SIZE_READ_RECORDS = 1000)
 	{
 		CacheInfo* ci;
 
@@ -1043,7 +1041,7 @@ class TripleStorageMongoDB: TripleStorage
 		return it;
 	}
 
-	public TLIterator getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates)
+	public TLIterator getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates, int MAX_SIZE_READ_RECORDS = 1000)
 	{
 		if(mask_triples !is null && mask_triples.length == 2 && mask_triples[0].S !is null && mask_triples[0].P is null && mask_triples[0].O is null && mask_triples[1].S is null && mask_triples[1].P !is null && mask_triples[1].O !is null)
 		{

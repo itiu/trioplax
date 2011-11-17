@@ -154,7 +154,7 @@ class TripleStorageMemory: TripleStorage
 	{
 	}
 
-	public TLIterator getTriples(string _S, string _P, string _O)
+	public TLIterator getTriples(string _S, string _P, string _O, int MAX_SIZE_READ_RECORDS = 1000)
 	{
 		//		StopWatch sw;
 		//		sw.start();
@@ -230,7 +230,7 @@ class TripleStorageMemory: TripleStorage
 
 	}
 
-	public TLIterator getTriplesOfMask(ref Triple[] triples, byte[char[]] reading_predicates)
+	public TLIterator getTriplesOfMask(ref Triple[] triples, byte[char[]] reading_predicates, int MAX_SIZE_READ_RECORDS=1000)
 	{
 		StopWatch sw;
 		sw.start();
