@@ -23,10 +23,10 @@ private import trioplax.Logger;
 private import trioplax.memory.TripleStorageMemory;
 private import trioplax.memory.ComplexKeys;
 
-private import mongo_h;
-private import mongo;
-private import bson_h;
-private import bson;
+private import mongod.mongo_h;
+private import mongod.mongo;
+private import mongod.bson_h;
+private import mongod.bson;
 
 Logger log;
 
