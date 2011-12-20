@@ -15,7 +15,7 @@ interface TripleStorage
 	public int addTriple(Triple tt);
 	public void addTripleToReifedData(Triple reif, string p, string o, byte lang);
 	
-	public TLIterator getTriples(string s, string p, string o, int MAX_SIZE_READ_RECORDS = 1000);
+	public TLIterator getTriples(string s, string p, string o, int MAX_SIZE_READ_RECORDS = 1000, int OFFSET = 0);
 	public TLIterator getTriplesOfMask(ref Triple[] triples, byte[char[]] read_predicates, int MAX_SIZE_READ_RECORDS = 1000);
 	
 	public bool isExistSubject (string subject); 

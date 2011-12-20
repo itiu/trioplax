@@ -1,8 +1,6 @@
-// D import file generated from 'src/mongod/mongo_h.d'
-module mongod.mongo_h;
-private import std.socket;
-
-private import mongod.bson_h;
+// D import file generated from 'src/mongoc/mongo_h.d'
+module mongoc.mongo_h;
+private import mongoc.bson_h;
 
 public static string[] mongo_error_str = ["Connection success!","Could not create a socket.","An error occured while calling connect().","An error occured while calling getaddrinfo().","Warning: connected to a non-master node (read-only).","Given rs name doesn't match this replica set.","Can't find primary _in replica set. Connection closed.","An error occurred while reading or writing on socket.","The response is not the expected length.","The command returned with 'ok' value of 0.","The cursor has no more results.","The cursor has timed _out or is not recognized.","Tailable cursor still alive but no data.","BSON not valid for the specified op.","BSON object has not been finished."];
 
@@ -80,49 +78,12 @@ MONGO_OP_GET_MORE = 2005,
 MONGO_OP_DELETE = 2006,
 MONGO_OP_KILL_CURSORS = 2007,
 }
-struct mongo_header
-{
-    int len;
-    int id;
-    int responseTo;
-    int op;
-}
-struct mongo_message
-{
-    mongo_header head;
-    char data;
-}
-struct mongo_reply_fields
-{
-    int flag;
-    int64_t cursorID;
-    int start;
-    int num;
-}
-struct mongo_reply
-{
-    mongo_header head;
-    mongo_reply_fields fields;
-    char objs;
-}
-struct mongo_host_port
-{
-    string host;
-    int port;
-    mongo_host_port* next;
-}
-struct mongo_replset
-{
-    mongo_host_port* seeds;
-    mongo_host_port* hosts;
-    char* name;
-    bson_bool_t primary_connected;
-}
+alias int bson_bool_t;
 struct mongo
 {
-    mongo_host_port* primary;
-    mongo_replset* replset;
-    Socket sock;
+    void* primary;
+    void* replset;
+    uint sock;
     int flags;
     int conn_timeout_ms;
     int op_timeout_ms;
@@ -134,7 +95,7 @@ struct mongo
 }
 struct mongo_cursor
 {
-    mongo_reply* reply;
+    void* reply;
     mongo* conn;
     char* ns;
     int flags;
@@ -147,3 +108,25 @@ struct mongo_cursor
     int limit;
     int skip;
 }
+extern (C) mongo_error_t mongo_get_error(mongo* conn);
+
+extern (C) int mongo_cursor_destroy(mongo_cursor* cursor);
+
+extern (C) int mongo_cursor_next(mongo_cursor* cursor);
+
+extern (C) bson_type bson_iterator_next(bson_iterator* i);
+
+extern (C) bson_type bson_iterator_type(bson_iterator* i);
+
+extern (C) int mongo_connect(mongo* conn, char* host, int port);
+
+extern (C) int mongo_set_op_timeout(mongo* conn, int millis);
+
+extern (C) int mongo_remove(mongo* conn, char* ns, bson* cond);
+
+extern (C) int mongo_find_one(mongo* conn, char* ns, bson* query, bson* fields, bson* _out);
+
+extern (C) mongo_cursor* mongo_find(mongo* conn, char* ns, bson* query, bson* fields, int limit, int skip, int options);
+
+extern (C) int mongo_update(mongo* conn, char* ns, bson* cond, bson* op, int flags);
+

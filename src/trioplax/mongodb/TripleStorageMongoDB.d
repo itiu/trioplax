@@ -23,10 +23,8 @@ private import trioplax.Logger;
 private import trioplax.memory.TripleStorageMemory;
 private import trioplax.memory.ComplexKeys;
 
-private import mongod.mongo_h;
-private import mongod.mongo;
-private import mongod.bson_h;
-private import mongod.bson;
+private import mongoc.bson_h;
+private import mongoc.mongo_h;
 
 Logger log;
 
@@ -571,10 +569,12 @@ class TripleStorageMongoDB: TripleStorage
 		col = cast(char*) collection;
 		ns = cast(char*) (collection ~ ".simple");
 
-		int err = mongo_connect(&conn, host, port);
+		log.trace("connect to mongodb...");
+
+		int err = mongo_connect(&conn, cast(char*) toStringz(host), port);
 		if(err != MONGO_OK)
 		{
-			log.trace("failed to connect to mongodb, err=%s", mongo_error_str[conn.err]);
+			log.trace("failed to connect to mongodb, err=%s", mongo_error_str[mongo_get_error(&conn)]);
 			throw new Exception("failed to connect to mongodb");
 		}
 		log.trace("connect to mongodb sucessful");
@@ -656,7 +656,7 @@ class TripleStorageMongoDB: TripleStorage
 	{
 		try
 		{
-//			writeln("remove ", s);
+			//			writeln("remove ", s);
 
 			bson cond;
 
@@ -866,7 +866,7 @@ class TripleStorageMongoDB: TripleStorage
 		mongo_update(&conn, ns, &cond, &op, 1);
 
 		bson_destroy(&op);
-		
+
 		// добавим данные для полнотекстового поиска
 		char[][] aaa;
 
@@ -896,7 +896,7 @@ class TripleStorageMongoDB: TripleStorage
 				}
 
 				aaa = split(l_o, " ");
-				
+
 				bson_destroy(&op);
 
 				bson_init(&op);
@@ -918,8 +918,8 @@ class TripleStorageMongoDB: TripleStorage
 
 				bson_finish(&op);
 				mongo_update(&conn, ns, &cond, &op, 1);
-				
-				bson_destroy(&op);				
+
+				bson_destroy(&op);
 			}
 		}
 
@@ -948,7 +948,57 @@ class TripleStorageMongoDB: TripleStorage
 		return 0;
 	}
 
-	public TLIterator getTriples(string s, string p, string o, int MAX_SIZE_READ_RECORDS = 1000)
+	public string getNextSubject(ref mongo_cursor* cursor)
+	{
+		if(cursor is null)
+		{
+			bson query;
+			bson fields;
+
+			bson_init(&query);
+			bson_init(&fields);
+
+			_bson_append_string(&fields, "@", "1");
+
+			bson_finish(&query);
+			bson_finish(&fields);
+
+			cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
+			if(cursor is null)
+			{
+				log.trace("ex! getSubjects, err=%s", mongo_error_str[mongo_get_error(&conn)]);
+				throw new Exception("getSubjects, err=" ~ mongo_error_str[mongo_get_error(&conn)]);
+			}
+			
+			bson_destroy(&fields);
+			bson_destroy(&query);			
+		}
+
+		if(mongo_cursor_next(cursor) == MONGO_OK)
+		{
+			bson_iterator it;
+			bson_iterator_init(&it, &cursor.current);
+
+			short count_fields = 0;
+			while(bson_iterator_next(&it))
+			{
+				bson_type type = bson_iterator_type(&it);
+
+				switch(type)
+				{
+					case bson_type.BSON_STRING:
+					{
+						string _value = fromStringz(bson_iterator_string(&it));
+						return _value;
+					}
+					default:
+				}
+			}
+		}
+		return null;
+	}
+
+	public TLIterator getTriples(string s, string p, string o, int MAX_SIZE_READ_RECORDS = 1000, int OFFSET = 0)
 	{
 		CacheInfo* ci;
 
@@ -1005,11 +1055,11 @@ class TripleStorageMongoDB: TripleStorage
 		bson_finish(&query);
 		bson_finish(&fields);
 
-		mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, MAX_SIZE_READ_RECORDS, 0, 0);
+		mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, MAX_SIZE_READ_RECORDS, OFFSET, 0);
 		if(cursor is null)
 		{
-			log.trace("ex! getTriples:mongo_find, err=%s", mongo_error_str[conn.err]);
-			throw new Exception("getTriples:mongo_find, err=" ~ mongo_error_str[conn.err]);
+			log.trace("ex! getTriples:mongo_find, err=%s", mongo_error_str[mongo_get_error(&conn)]);
+			throw new Exception("getTriples:mongo_find, err=" ~ mongo_error_str[mongo_get_error(&conn)]);
 		}
 
 		TLIterator it;
@@ -1041,14 +1091,15 @@ class TripleStorageMongoDB: TripleStorage
 		return it;
 	}
 
-	public TLIterator getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates, int MAX_SIZE_READ_RECORDS = 1000)
+	public TLIterator getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates,
+			int MAX_SIZE_READ_RECORDS = 1000)
 	{
 		if(mask_triples !is null && mask_triples.length == 2 && mask_triples[0].S !is null && mask_triples[0].P is null && mask_triples[0].O is null && mask_triples[1].S is null && mask_triples[1].P !is null && mask_triples[1].O !is null)
 		{
-			mask_triples[0].P = mask_triples[1].P; 
+			mask_triples[0].P = mask_triples[1].P;
 			mask_triples[0].O = mask_triples[1].O;
 			mask_triples.length = 1;
-//			log.trace("!!!");
+			//			log.trace("!!!");
 		}
 
 		CacheInfo* ci;
@@ -1092,7 +1143,7 @@ class TripleStorageMongoDB: TripleStorage
 
 				return null;
 			}
-			
+
 			bson_init(&query);
 			bson_init(&fields);
 
@@ -1107,8 +1158,8 @@ class TripleStorageMongoDB: TripleStorage
 				if(trace_msg[1002] == 1)
 				{
 					log.trace("getTriplesOfMask i=%d <%s><%s><%s>", i, s, p, o);
-					if (o is null)
-					    log.trace ("o is null");
+					if(o is null)
+						log.trace("o is null");
 				}
 
 				if(s !is null && s.length > 0)
@@ -1166,8 +1217,8 @@ class TripleStorageMongoDB: TripleStorage
 			cursor = mongo_find(&conn, ns, &query, &fields, MAX_SIZE_READ_RECORDS, 0, 0);
 			if(cursor is null)
 			{
-				log.trace("ex! getTriplesOfMask:mongo_find, err=%s", mongo_error_str[conn.err]);
-				throw new Exception("getTriplesOfMask:mongo_find, err=" ~ mongo_error_str[conn.err]);
+				log.trace("ex! getTriplesOfMask:mongo_find, err=%s", mongo_error_str[mongo_get_error(&conn)]);
+				throw new Exception("getTriplesOfMask:mongo_find, err=" ~ mongo_error_str[mongo_get_error(&conn)]);
 			}
 
 			sw0.stop();
@@ -1417,13 +1468,13 @@ private hash_t get_hash_of_query(ref Triple[] mask_triples)
 
 private bool need_caching(CacheInfo* ci, string s, string p, string O)
 {
-//	log.trace("need_caching ? query [<%s><%s><%s>] %d", s, p, O, ci !is null ? ci.count : -1);
+	//	log.trace("need_caching ? query [<%s><%s><%s>] %d", s, p, O, ci !is null ? ci.count : -1);
 	if(ci !is null && ci.isCached == false && ci.count > 100)
 	{
 		if(O !is null && O[0] == '^')
 			return false;
 
-//		log.trace("yes");
+		//		log.trace("yes");
 		return true;
 	}
 	return false;
@@ -1431,7 +1482,7 @@ private bool need_caching(CacheInfo* ci, string s, string p, string O)
 
 private bool need_caching(CacheInfo* ci, ref Triple[] mask_triples)
 {
-//	log.trace("need_caching ? query [%s] %d ci=%x", mask_triples, ci !is null ? ci.count : -1, ci);
+	//	log.trace("need_caching ? query [%s] %d ci=%x", mask_triples, ci !is null ? ci.count : -1, ci);
 	if(ci !is null && ci.isCached == false && ci.count > 100 && mask_triples.length == 1)
 	{
 
@@ -1441,7 +1492,7 @@ private bool need_caching(CacheInfo* ci, ref Triple[] mask_triples)
 				return false;
 		}
 
-//		log.trace("yes");
+		//		log.trace("yes");
 		return true;
 	}
 	return false;

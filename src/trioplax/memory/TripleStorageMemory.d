@@ -154,7 +154,7 @@ class TripleStorageMemory: TripleStorage
 	{
 	}
 
-	public TLIterator getTriples(string _S, string _P, string _O, int MAX_SIZE_READ_RECORDS = 1000)
+	public TLIterator getTriples(string _S, string _P, string _O, int MAX_SIZE_READ_RECORDS = 1000, int OFFSET = 0)
 	{
 		//		StopWatch sw;
 		//		sw.start();
