@@ -1,12 +1,9 @@
 Installation Instructions
 *************************
 
-compiling on ubuntu 10.04
+compiling on ubuntu 11.04
 
-download dmd+tango
+install dmd 2.053
 
-http://code.google.com/p/ontobus/source/browse/trunk/d/dmd_1.043_i386.deb
-http://code.google.com/p/ontobus/source/browse/trunk/d/tango-dmd_0.99.8_i386.deb
-
-dmd_1.043_i386.deb
-tango-dmd_0.99.8_i386.deb
+linux:
+ run build_with_dmd.sh

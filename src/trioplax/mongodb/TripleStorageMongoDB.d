@@ -1,1153 +1,723 @@
-// TODO логгирование медленных запросов
+// TODO Batch insert/update
+// TODO утечка памяти при добавлении фактов
+// TODO утечка памяти при чтении фактов
 
 module trioplax.mongodb.TripleStorageMongoDB;
 
-private import tango.io.Stdout;
-private import tango.stdc.string;
-private import tango.stdc.stringz;
-private import tango.stdc.stdlib: calloc;
+private import std.string;
+private import std.c.string;
+private import std.datetime;
+private import std.stdio;
+private import std.outbuffer;
+private import core.stdc.stdio;
+private import core.thread;
+
+import rt.util.hash;
 
 private import Integer = tango.text.convert.Integer;
-private import tango.io.device.File;
-private import tango.time.WallClock;
-private import tango.time.StopWatch;
-private import tango.time.Clock;
-private import tango.text.locale.Locale;
-
-private Locale layout;
-
-//private import libmongoc_headers;
 
 private import trioplax.triple;
 private import trioplax.TripleStorage;
-private import trioplax.Log;
-
-private import bson;
-private import md5;
-private import mongo;
-
-private import tango.stdc.stdlib: calloc, free;
+private import trioplax.Logger;
 
 private import trioplax.memory.TripleStorageMemory;
-private import trioplax.memory.TripleHashMap;
-private import trioplax.memory.IndexException;
+private import trioplax.memory.ComplexKeys;
+
+private import mongod.mongo_h;
+private import mongod.mongo;
+private import mongod.bson_h;
+private import mongod.bson;
+
+Logger log;
+
+enum caching_type: byte
+{
+	NONE = 0,
+	ALL_DATA = 1,
+	QUERY_RESULT = 2
+}
+
+static this()
+{
+	log = new Logger("trioplax", "log", "");
+}
+
+class TripleStorageMongoDBIterator: TLIterator
+{
+	mongo_cursor* cursor;
+	byte[char[]] reading_predicates;
+	bool is_query_all_predicates = false;
+	bool is_get_all = false;
+	bool is_get_all_reifed = false;
+
+	TripleStorageMemory ts_in_mem;
+
+	this(mongo_cursor* _cursor, TripleStorageMemory _ts_in_mem = null)
+	{
+		cursor = _cursor;
+		ts_in_mem = _ts_in_mem;
+	}
+
+	this(mongo_cursor* _cursor, ref byte[char[]] _reading_predicates, TripleStorageMemory _ts_in_mem = null)
+	{
+		cursor = _cursor;
+		ts_in_mem = _ts_in_mem;
+		reading_predicates = _reading_predicates;
+
+		if(reading_predicates.length > 0)
+		{
+			byte* type_of_getting_field = ("query:all_predicates" in reading_predicates);
+
+			if(type_of_getting_field !is null)
+			{
+				is_query_all_predicates = true;
+				if(*type_of_getting_field == field.GET)
+				{
+					is_get_all = true;
+				} else if(*type_of_getting_field == field.GET_REIFED)
+				{
+					is_get_all_reifed = true;
+				}
+
+			}
+		}
+
+	}
+
+	~this()
+	{
+		if(cursor !is null)
+		{
+			mongo_cursor_destroy(cursor);
+		}
+	}
+
+	int opApply(int delegate(ref Triple) dg)
+	{
+		if(cursor is null)
+			return -1;
+
+		int result = 0;
+
+		string S;
+		string P;
+		string O;
+
+		Triple[][FKeys] reif_triples;
+		int count_of_reifed_data = 0;
+
+		if(trace_msg[1007] == 1)
+			log.trace("opApply:TripleStorageMongoDBIterator:cursor %x", cursor);
+
+		if(trace_msg[1007] == 1)
+			log.trace("opApply:TripleStorageMongoDBIterator:reading_predicates %s", reading_predicates);
+
+		while(mongo_cursor_next(cursor) == MONGO_OK)
+		{
+			//			log.trace("while(mongo_cursor_next(cursor) == MONGO_OK)");
+			bson_iterator it;
+			bson_iterator_init(&it, &cursor.current);
+
+			short count_fields = 0;
+			while(bson_iterator_next(&it))
+			{
+				//					writeln ("it++");
+				bson_type type = bson_iterator_type(&it);
+
+				if(trace_msg[1007] == 1)
+					log.trace("TripleStorageMongoDBIterator:next key, TYPE=%d", type);
+
+				switch(type)
+				{
+					case bson_type.BSON_STRING:
+					{
+						string _name_key = fromStringz(bson_iterator_key(&it));
+
+						if(trace_msg[1008] == 1)
+							log.trace("TripleStorageMongoDBIterator:string:_name_key:%s", _name_key);
+
+						// если не указанны требуемые предикаты, то берем какие были считанны
+						byte* type_of_getting_field = null;
+						if(is_query_all_predicates == false && reading_predicates.length > 0)
+						{
+							type_of_getting_field = (_name_key in reading_predicates);
+
+							if(type_of_getting_field is null)
+								break;
+						}
+
+						string _value = fromStringz(bson_iterator_string(&it));
+
+						if(trace_msg[1009] == 1)
+							log.trace("TripleStorageMongoDBIterator:_value:%s", _value);
+
+						if(_name_key == "@")
+						{
+							S = _value;
+						} else if(_name_key[0] != '_')
+						{
+							P = _name_key;
+							O = _value;
+
+							//\\							TODO !is_query_all_predicates оставлено для совместимости тестов
+
+							//							if (is_query_all_predicates)	
+							//							{
+							//								Triple tt000 = new Triple(S, P, O);
+							//														
+							//								result = dg(tt000);
+							//								if(result)
+							//									return -1;
+							//							}
+							//							else
+							//							{
+							if(O !is null)
+							// && O.length > 0) 
+							{
+								Triple tt000 = new Triple(S, P, O);
+
+								result = dg(tt000);
+								if(ts_in_mem !is null)
+									ts_in_mem.addTriple(tt000);
+								if(result)
+									return -1;
+							}
+							//							}
+
+							// проверим есть ли для этого триплета реифицированные данные
+							if(is_get_all_reifed == true || type_of_getting_field !is null && *type_of_getting_field == field.GET_REIFED)
+							{
+								FKeys t3 = new FKeys(S, P, O);
+
+								Triple[]* vv = t3 in reif_triples;
+								if(vv !is null)
+								{
+									Triple[] r1_reif_triples = *vv;
+
+									if(r1_reif_triples !is null && r1_reif_triples.length > 0)
+									{
+										Triple tt0 = new Triple(r1_reif_triples[0].S, "a", "rdf:Statement");
+
+										result = dg(tt0);
+										if(ts_in_mem !is null)
+											ts_in_mem.addTriple(tt0);
+										if(result)
+											return 1;
+
+										tt0 = new Triple(r1_reif_triples[0].S, "rdf:subject", S);
+
+										result = dg(tt0);
+										if(ts_in_mem !is null)
+											ts_in_mem.addTriple(tt0);
+										if(result)
+											return 1;
+
+										tt0 = new Triple(r1_reif_triples[0].S, "rdf:predicate", P);
+										if(ts_in_mem !is null)
+											ts_in_mem.addTriple(tt0);
+										result = dg(tt0);
+										if(result)
+											return 1;
+
+										tt0 = new Triple(r1_reif_triples[0].S, "rdf:object", O);
+										if(ts_in_mem !is null)
+											ts_in_mem.addTriple(tt0);
+										result = dg(tt0);
+										if(result)
+											return 1;
+
+										foreach(tt; r1_reif_triples)
+										{
+											// можно добавлять в список
+											if(trace_msg[1010] == 1)
+												log.trace("reif : %s", tt);
+
+											result = dg(tt);
+											if(ts_in_mem !is null)
+												ts_in_mem.addTriple(tt);
+											if(result)
+												return 1;
+										}
+									}
+								}
+							}
+
+						}
+
+						break;
+					}
+
+					case bson_type.BSON_ARRAY:
+					{
+						string _name_key = fromStringz(bson_iterator_key(&it));
+
+						if(trace_msg[1008] == 1)
+							log.trace("TripleStorageMongoDBIterator:string:_name_key:%s", _name_key);
+
+						if(_name_key != "@" && _name_key[0] != '_')
+						{
+
+							// если не указанны требуемые предикаты, то берем какие были считанны
+							byte* type_of_getting_field = null;
+							if(is_query_all_predicates == false && reading_predicates.length > 0)
+							{
+								type_of_getting_field = (_name_key in reading_predicates);
+
+								if(type_of_getting_field is null)
+									break;
+							}
+
+							bson_iterator i_1;
+							bson_iterator_subiterator(&it, &i_1);
+
+							while(bson_iterator_next(&i_1))
+							{
+								switch(bson_iterator_type(&i_1))
+								{
+									case bson_type.BSON_STRING:
+									{
+										string A_value = fromStringz(bson_iterator_string(&i_1));
+
+										if(A_value.length > 0)
+										{
+											Triple tt0 = new Triple(S, _name_key, A_value);
+											result = dg(tt0);
+											if(ts_in_mem !is null)
+												ts_in_mem.addTriple(tt0);
+											if(result)
+												return 1;
+										}
+									}
+									default:
+									break;
+								}
+
+							}
+						}
+						break;
+					}
+
+					case bson_type.BSON_OBJECT:
+					{
+						string _name_key = fromStringz(bson_iterator_key(&it));
+
+						if(trace_msg[1008] == 1)
+							log.trace("TripleStorageMongoDBIterator:string:_name_key:%s", _name_key);
+
+						// если не указанны требуемые предикаты, то берем какие были считанны
+						byte* type_of_getting_field = null;
+						if(is_query_all_predicates == false && reading_predicates.length > 0)
+						{
+							type_of_getting_field = (_name_key in reading_predicates);
+
+							if(type_of_getting_field is null)
+								break;
+						}
+
+						if(_name_key[0] == '_' && _name_key[1] == 'r' && _name_key[2] == 'e' && _name_key[3] == 'i')
+						{
+							string s_reif_parent_triple = S;
+							string p_reif_parent_triple = _name_key[6 .. $];
+
+							// это реифицированные данные, восстановим факты его образующие
+							// добавим в список:
+							//	_new_node_uid a fdr:Statement
+							//	_new_node_uid rdf:subject [$S]
+							//	_new_node_uid rdf:predicate [$_name_key[6..]]
+							//	_new_node_uid rdf:object [?]
+
+							Triple[] r_triples = new Triple[10];
+							int last_r_triples = 0;
+
+							//							if(trace_msg[1013] == 1)
+							//								log.trace("TripleStorageMongoDBIterator:REIFFF _name_key:%s", _name_key);
+
+							//							char* val = bson_iterator_value(&it);
+							bson_iterator i_L1;
+							bson_iterator_subiterator(&it, &i_L1);
+							//							bson_iterator_init(&i_L1, val);
+
+							while(bson_iterator_next(&i_L1))
+							{
+								switch(bson_iterator_type(&i_L1))
+								{
+
+									case bson_type.BSON_OBJECT:
+									{
+										count_of_reifed_data++; //???
+
+										char[] reifed_data_subj = new char[7];
+										reifed_data_subj[0] = '_';
+										reifed_data_subj[1] = ':';
+										reifed_data_subj[2] = 'R';
+										reifed_data_subj[3] = '_';
+										reifed_data_subj[4] = '_';
+										reifed_data_subj[5] = '_';
+										reifed_data_subj[6] = 0;
+
+										Integer.format(reifed_data_subj, count_of_reifed_data, cast(char[]) "X2");
+
+										//										log.trace("TripleStorageMongoDBIterator: # <, count_of_reifed_data=%s", reifed_data_subj);										
+
+										string _name_key_L1 = fromStringz(bson_iterator_key(&i_L1));
+										string o_reif_parent_triple = _name_key_L1;
+
+										if(trace_msg[1014] == 1)
+											log.trace("TripleStorageMongoDBIterator:_name_key_L1 %s", _name_key_L1);
+
+										//										char* val_L2 = bson_iterator_value(&i_L1);
+
+										//										log.trace("TripleStorageMongoDBIterator: val_L2 %s", fromStringz(val_L2));
+
+										bson_iterator i_L2;
+										//										bson_iterator_init(&i_L2, val_L2);
+										bson_iterator_subiterator(&i_L1, &i_L2);
+
+										//										log.trace("TripleStorageMongoDBIterator: # {");
+
+										while(bson_iterator_next(&i_L2))
+										{
+											switch(bson_iterator_type(&i_L2))
+											{
+												case bson_type.BSON_STRING:
+												{
+													string _name_key_L2 = fromStringz(bson_iterator_key(&i_L2));
+
+													if(trace_msg[1015] == 1)
+														log.trace("TripleStorageMongoDBIterator:_name_key_L2=%s",
+																_name_key_L2);
+
+													string _name_val_L2 = fromStringz(bson_iterator_string(&i_L2));
+
+													if(trace_msg[1016] == 1)
+														log.trace("TripleStorageMongoDBIterator:_name_val_L2L=%s",
+																_name_val_L2);
+
+													//	r_triple.P = _name_key_L2;
+													//	r_triple.O = _name_val_L2;
+													//	r_triple.S = cast(immutable) reifed_data_subj;
+
+													Triple r_triple = new Triple(cast(string) reifed_data_subj,
+															_name_key_L2, _name_val_L2);
+													//													log.trace("++ triple %s", r_triple);
+
+													if(last_r_triples >= r_triples.length)
+														r_triples.length += 50;
+
+													r_triples[last_r_triples] = r_triple;
+
+													last_r_triples++;
+
+													break;
+												}
+
+												case bson_type.BSON_ARRAY:
+												{
+													string _name_key_L2 = fromStringz(bson_iterator_key(&i_L2));
+
+													//													val = bson_iterator_value(&i_L2);
+
+													bson_iterator i_1;
+													bson_iterator_subiterator(&i_L2, &i_1);
+													//													bson_iterator_init(&i_1, val);
+
+													while(bson_iterator_next(&i_1))
+													{
+														switch(bson_iterator_type(&i_1))
+														{
+															case bson_type.BSON_STRING:
+															{
+																string
+																		A_value = fromStringz(
+																				bson_iterator_string(&i_1));
+
+																Triple r_triple = new Triple(
+																		cast(string) reifed_data_subj, _name_key_L2,
+																		A_value);
+
+																if(last_r_triples >= r_triples.length)
+																	r_triples.length += 50;
+
+																r_triples[last_r_triples] = r_triple;
+
+																last_r_triples++;
+															}
+															default:
+															break;
+														}
+
+													}
+
+													break;
+												}
+
+												default:
+												break;
+											}
+										}
+
+										//										log.trace("TripleStorageMongoDBIterator: # }");
+
+										r_triples.length = last_r_triples;
+
+										//										log.trace("TripleStorageMongoDBIterator: #9 last_r_triples=%d, _name_key_L1=[%s]", last_r_triples, cast(immutable) _name_key_L1);
+
+										//										if (reif_triples is null)
+										//											log.trace("TripleStorageMongoDBIterator: reif_triples is null");																					
+
+										FKeys reifed_composite_key = new FKeys(s_reif_parent_triple,
+												p_reif_parent_triple, o_reif_parent_triple);
+										reif_triples[reifed_composite_key] = r_triples;
+
+										//										log.trace("TripleStorageMongoDBIterator: #10 reifed_composite_key=%s", reifed_composite_key);
+
+										break;
+									}
+									/*
+									 case bson_type.bson_eoo:
+									 {
+									 char[] _name_val_L1 = fromStringz(bson_iterator_string(&i_L1));
+
+									 if(trace_msg[0][18] == 1)
+									 log.trace("getTriplesOfMask:bson_type.bson_eoo QQQ L1 VAL=%s", _name_val_L1);
+
+									 r_triples.length = last_r_triples;
+									 reif_triples[cast(immutable) _name_key_L1] = r_triples;
+
+									 break;
+									 }
+									 */
+									default:
+									break;
+								}
+
+							}
+
+						}
+
+						break;
+					}
+
+					default:
+						{
+							if(trace_msg[1019] == 1)
+							{
+								string _name_key = fromStringz(bson_iterator_key(&it));
+								//								log.trace("TripleStorageMongoDBIterator:def:_name_key:", _name_key);
+							}
+						}
+					break;
+
+				}
+			}
+		}
+
+		//		log.trace("mongo_cursor_destroy(cursor)");
+
+		mongo_cursor_destroy(cursor);
+		cursor = null;
+
+		return 0;
+	}
+
+	int length()
+	{
+		int count = 0;
+
+		//		foreach(tt; this)
+		//		{
+		//			count++;
+		//			log.trace("length:%s", tt);
+		//		}
+
+		return count;
+	}
+}
+
+struct CacheInfo
+{
+	int count = 0;
+	long lifetime;
+	bool isCached = false;
+}
 
 class TripleStorageMongoDB: TripleStorage
 {
+	string query_log_filename = "triple-storage-io";
+
 	private long total_count_queries = 0;
-	private long count_queries_in_cache = 0;
-
-	private int max_length_pull = 1024 * 10;
-	private int average_list_size = 3;
-
-	private int strings_max_length = 0;
-	private char* strings = null;
-	private int last_used_element_in_strings = 0;
-
-	private Triple* triples = null;
-
-	private int elements_in_list_max_length = 0;
-	private triple_list_element* elements_in_list = null;
-	private int last_used_element_in_pull = 0;
-
-	private triple_list_element*[] used_list = null;
 
 	private char[] buff = null;
-	private const char* col = "az1";
-	private const char* ns = "az1.simple";
-
-	//	private char[][1024] query_of_used_lists;
-	//	private char[][triple_list_element*] used_lists_pull;
-	//	private int count_used_lists = 0;
-
-	private int count_all_allocated_lists = 0;
-	private int max_length_list = 0;
-	private int max_use_pull = 0;
+	private char* col = cast(char*) "coll1";
+	private char* ns = cast(char*) "coll1.simple";
 
 	private bool[char[]] predicate_as_multiple;
+	private bool[char[]] multilang_predicates;
+	private bool[char[]] fulltext_indexed_predicates;
 
 	private bool log_query = false;
 
-	private mongo_connection conn;
+	private mongo conn;
 
-	private TripleStorageMemory cache_query_result = null;
-	private HashMap list_query = null;
+	byte caching_strategy;
+	TripleStorageMemory ts_in_mem;
+	CacheInfo*[hash_t] queryes;
+	int count_cached_queryes;
 
-	private char[] P1;
-	private char[] P2;
-	private char[] store_predicate_in_list_on_idx_s1ppoo;
-
-	this(char[] host, int port)
+	this(string host, int port, string collection, byte _caching_strategy = caching_type.NONE)
 	{
-		triples = cast(Triple*) calloc(Triple.sizeof, max_length_pull * average_list_size);
-		strings_max_length = max_length_pull * average_list_size * 3 * 256;
-		strings = cast(char*) calloc(char.sizeof, strings_max_length);
+		caching_strategy = _caching_strategy;
 
-		elements_in_list_max_length = max_length_pull * average_list_size;
-		elements_in_list = cast(triple_list_element*) calloc(triple_list_element.sizeof, elements_in_list_max_length);
+		col = cast(char*) collection;
+		ns = cast(char*) (collection ~ ".simple");
 
-		used_list = new triple_list_element*[max_length_pull];
-		last_used_element_in_pull = 0;
-
-		layout = new Locale;
-		buff = new char[32];
-
-		mongo_connection_options opts;
-
-		strncpy(cast(char*) opts.host, host.ptr, 255);
-		opts.host[254] = '\0';
-		opts.port = port;
-
-		if(mongo_connect(&conn, &opts))
+		int err = mongo_connect(&conn, host, port);
+		if(err != MONGO_OK)
 		{
-			log.trace("failed to connect to mongodb");
+			log.trace("failed to connect to mongodb, err=%s", mongo_error_str[conn.err]);
 			throw new Exception("failed to connect to mongodb");
 		}
 		log.trace("connect to mongodb sucessful");
+		mongo_set_op_timeout(&conn, 1000);
+
+		init();
 	}
 
-	public void set_cache()
+	int _tmp_hhh = 0;
+
+	private void init()
 	{
-		cache_query_result = new TripleStorageMemory(300_000, 5, 10_000_000);
-		cache_query_result.set_new_index(idx_name.S, 300_000, 5, 10_000_000);
-		cache_query_result.set_new_index(idx_name.O, 300_000, 5, 10_000_000);
-		cache_query_result.set_new_index(idx_name.PO, 300_000, 5, 10_000_000);
-		cache_query_result.set_new_index(idx_name.SP, 300_000, 6, 10_000_000);
-		cache_query_result.set_new_index(idx_name.S1PPOO, 300_000, 5, 10_000_000);
+		if(caching_strategy == caching_type.ALL_DATA || caching_strategy == caching_type.QUERY_RESULT)
+		{
+			ts_in_mem = new TripleStorageMemory();
 
-		cache_query_result.set_log_query_mode(log_query);
+			if(caching_strategy == caching_type.ALL_DATA)
+			{
+				// для этой стратегии кеширования, следует загрузить весь кеш, данными из mongodb
+			}
 
-		list_query = new HashMap("list_query", 300_000, 10_000_000, 5);
+		}
 	}
 
 	public void set_log_query_mode(bool on_off)
 	{
 		log_query = on_off;
-	}
-
-	public void release_all_lists()
-	{
-		last_used_element_in_pull = 0;
-		last_used_element_in_strings = 0;
-
-		//		used_lists_pull = null;
-		//count_used_lists = 0;
-
-		//		char[][] values = used_lists_pull.values;
-
-		//		for(int i = 0; i < values.length; i++)
-		//		{
-		//			log.trace("used list of query {}", values[i]);
-		//		}
 
 	}
 
-	public void define_predicate_as_multiple(char[] predicate)
+	public void define_predicate_as_multiple(string predicate)
 	{
 		predicate_as_multiple[predicate] = true;
 
-		if(cache_query_result !is null)
-			cache_query_result.define_predicate_as_multiple(predicate);
+		if(ts_in_mem !is null)
+			ts_in_mem.define_predicate_as_multiple(predicate);
 
-		log.trace("define predicate [{}] as multiple", predicate);
+		log.trace("TSMDB:define predicate [%s] as multiple", predicate);
+	}
+
+	public void define_predicate_as_multilang(string predicate)
+	{
+		multilang_predicates[predicate] = true;
+
+		if(ts_in_mem !is null)
+			ts_in_mem.define_predicate_as_multilang(predicate);
+
+		log.trace("TSMDB:define predicate [%s] as multilang", predicate);
+	}
+
+	public void set_fulltext_indexed_predicates(string predicate)
+	{
+		fulltext_indexed_predicates[predicate] = true;
+
+		if(ts_in_mem !is null)
+			ts_in_mem.set_fulltext_indexed_predicates(predicate);
+
+		log.trace("TSMDB:set fulltext indexed predicate [%s]", predicate);
 	}
 
 	public bool f_trace_list_pull = true;
 
-	public void list_no_longer_required(triple_list_element* first_element_of_list)
-	{
-		/*
-		 if(first_element_of_list !is null)
-		 {
-		 if(f_trace_list_pull)
-		 {
-		 log.trace("list_no_longer_required ({:X4}), length={}", first_element_of_list, used_lists_pull.length);
-
-		 if((first_element_of_list in used_lists_pull) is null)
-		 throw new Exception("как так?");
-
-		 used_lists_pull.remove(first_element_of_list);
-		 }
-
-		 triple_list_element* list_iterator = first_element_of_list;
-		 while(list_iterator !is null)
-		 {
-		 Triple* triple = list_iterator.triple;
-
-		 if(triple.s !is null)
-		 free(triple.s);
-
-		 if(triple.p !is null)
-		 free(triple.p);
-
-		 if(triple.o !is null)
-		 free(triple.o);
-
-		 free(cast(void*) triple);
-
-		 triple_list_element* tmp = list_iterator;
-
-		 list_iterator = list_iterator.next_triple_list_element;
-
-		 free(cast(void*) tmp);
-		 }
-
-		 count_used_lists--;
-		 if(f_trace_list_pull)
-		 {
-		 log.trace ("list_no_longer_required.. ok");
-		 }
-		 }
-		 */
-	}
-
-	public void set_new_index(ubyte index, uint max_count_element, uint max_length_order, uint inital_triple_area_length)
-	{
-	}
+	//	public void set_new_index(ubyte index, uint max_count_element, uint max_length_order, uint inital_triple_area_length)
+	//	{
+	//	}
 
 	public void set_stat_info_logging(bool flag)
 	{
 	}
 
-	public void setPredicatesToS1PPOO(char[] _P1, char[] _P2, char[] _store_predicate_in_list_on_idx_s1ppoo)
-	{
-		P1 = _P1;
-		P2 = _P2;
-		store_predicate_in_list_on_idx_s1ppoo = _store_predicate_in_list_on_idx_s1ppoo;
+	//	public void setPredicatesToS1PPOO(char[] _P1, char[] _P2, char[] _store_predicate_in_list_on_idx_s1ppoo)
+	//	{
+	//		P1 = _P1;
+	//		P2 = _P2;
+	//		store_predicate_in_list_on_idx_s1ppoo = _store_predicate_in_list_on_idx_s1ppoo;
+	//	}
 
-		if(cache_query_result !is null)
-			cache_query_result.setPredicatesToS1PPOO(P1, P2, store_predicate_in_list_on_idx_s1ppoo);
-	}
-
-	public triple_list_element* getTriples(char*[] s, char*[] p, char*[] o, char*[] read_predicates)
+	public bool removeSubject(string s)
 	{
 		try
 		{
-			auto elapsed = new StopWatch();
-//			log.trace("getTriples (s[], p[], o[])");
+//			writeln("remove ", s);
 
-			assert(s.length == p.length && s.length == o.length);
+			bson cond;
 
-			triple_list_element* list = null;
-			triple_list_element* next_element = null;
-			triple_list_element* prev_element = null;
+			bson_init(&cond);
+			_bson_append_string(&cond, "@", s);
 
-			bson_buffer bb;
-			bson_buffer bb2;
-			bson fields;
-			bson query;
+			bson_finish(&cond);
+			mongo_remove(&conn, ns, &cond);
 
-			bson_buffer_init(&bb2);
-			bson_buffer_init(&bb);
+			bson_destroy(&cond);
 
-			bson_append_string(&bb2, "ss", "1");
-			//		bson_append_string(&bb2, "mo/at/acl#rt", "1");
-
-			for(short i = 0; i < s.length; i++)
-			{
-//				log.trace("i = {} , [{}][{}][{}]", i, fromStringz (s[i]), fromStringz (p[i]), fromStringz (o[i]));
-				if(s[i] !is null && strlen(s[i]) > 0)
-				{
-					bson_append_string(&bb, "ss", s[i]);
-
-//										log.trace("query: param ss:{}", fromStringz(s[i]));
-				}
-				if(p[i] !is null && o[i] !is null && strlen(o[i]) > 0)
-				{
-					bson_append_string(&bb, p[i], o[i]);
-
-					//					bson_append_string(&bb2, p[i], "1");
-//										log.trace("query: param {}:{}", fromStringz(p[i]), fromStringz(o[i]));
-				}
-			}
-
-			for(short i = 0; i < read_predicates.length; i++)
-			{
-				bson_append_string(&bb2, read_predicates[i], "1");
-				//				log.trace("set field:{}", fromStringz(read_predicates[i]));
-			}
-
-			bson_from_buffer(&fields, &bb2);
-			bson_from_buffer(&query, &bb);
-
-			elapsed.start;
-			mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
-			//		mongo_cursor* cursor = mongo_find(&conn, ns, &b, null, 0, 0, 0);
-			double time = elapsed.stop;
-
-			if(time * 1000 > 1)
-			{
-				log.trace("slowpoke query, {} ms :", time * 1000);
-				bson_log(&query);
-			}
-
-			//			log.trace("query is ok, read_predicates.length={}", read_predicates.length);
-
-			char*[] result_buff_p = new char*[read_predicates.length];
-			char*[] result_buff_o = new char*[read_predicates.length];
-			char* ss;
-
-			while(mongo_cursor_next(cursor))
-			{
-				//				log.trace("next of cursor");
-
-				bson_iterator it;
-				bson_iterator_init(&it, cursor.current.data);
-
-				short count_fields = 0;
-				while(bson_iterator_next(&it))
-				{
-					char* name_key = bson_iterator_key(&it);
-					//					log.trace("next field {}", fromStringz(name_key));
-
-					switch(bson_iterator_type(&it))
-					{
-						case bson_type.bson_string:
-						{
-							char* value = bson_iterator_string(&it);
-							if(strcmp(name_key, "ss".ptr) != 0 && strcmp(name_key, "_id".ptr) != 0)
-							{
-								result_buff_p[count_fields] = name_key;
-								result_buff_o[count_fields] = value;
-
-								count_fields++;
-								//								log.trace("count_fields= {}", count_fields);
-							}
-							else
-							{
-								ss = value;
-							}
-
-						}
-
-						default:
-						break;
-
-					}
-				}
-
-				short s_length = strlen(ss);
-
-				for(short i = 0; i < count_fields; i++)
-				{
-//					log.trace("[{}] [{}] [{}]", fromStringz(ss), fromStringz(result_buff_p[i]), fromStringz(result_buff_o[i]));
-
-					next_element = elements_in_list + last_used_element_in_pull;
-					next_element.next_triple_list_element = null;
-
-					Triple* triple = triples + last_used_element_in_pull;
-
-					last_used_element_in_pull++;
-					if(last_used_element_in_pull > elements_in_list_max_length)
-						throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
-
-					if(prev_element !is null)
-					{
-						prev_element.next_triple_list_element = next_element;
-					}
-
-					prev_element = next_element;
-					if(list is null)
-					{
-						list = next_element;
-					}
-
-					short p_length = strlen(result_buff_p[i]);
-					short o_length = strlen(result_buff_o[i]);
-
-					char* ts = strings + last_used_element_in_strings;
-					char* tp = ts + s_length + 1;
-					char* to = tp + p_length + 1;
-					last_used_element_in_strings += s_length + p_length + o_length + 3;
-
-					strcpy(ts, ss);
-					strcpy(tp, result_buff_p[i]);
-					strcpy(to, result_buff_o[i]);
-
-					triple.s = ts;
-					triple.p = tp;
-					triple.o = to;
-
-					next_element.triple = triple;
-				}
-
-			}
-
-			mongo_cursor_destroy(cursor);
-			bson_destroy(&query);
-			bson_destroy(&fields);
-
-			//			log.trace("@return");
-			return list;
+			return true;
 		} catch(Exception ex)
 		{
-			log.trace("@exception:", ex.msg);
-			throw ex;
+			log.trace("ex! removeSubject %s", s);
+			return false;
 		}
-
 	}
 
-	private char[] p_rt = "mo/at/acl#rt\0";
-
-	public triple_list_element* getTriplesUseIndexS1PPOO(char* s, char* p, char* o)
+	public bool isExistSubject(string subject)
 	{
-		auto elapsed = new StopWatch();
+		//		if(ts_mem !is null)
+		//			return ts_mem.isExistSubject(subject);
 
-		char ss1[];
-		char pp1[];
-		char oo1[];
+		StopWatch sw;
+		sw.start();
 
-		if(s !is null)
-			ss1 = fromStringz(s);
-		else
-			ss1 = "#";
+		bool res = false;
 
-		if(p !is null)
-			pp1 = fromStringz(p);
-		else
-			pp1 = "#";
-
-		if(o !is null)
-			oo1 = fromStringz(o);
-		else
-			oo1 = "#";
-
-		total_count_queries++;
-
-		triple_list_element* list_in_cache = null;
-
-		bool f_is_query_stored = false;
-
-		// проверим, был ли такой запрос закешированн
-		//		log.trace("S1PPOO is_query_in_cache? (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-		//		list_query.f_trace_put = true;
-		if(list_query !is null)
-		{
-			int dummy;
-			triple_list_element* is_query_in_cache = list_query.get(ss1.ptr, pp1.ptr, oo1.ptr, dummy);
-			if(is_query_in_cache !is null)
-			{
-				//			log.trace("S1PPOO query_is_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-
-				//			list_in_cache = S1PPOO_IDX.get(s, p, o, dummy);
-				list_in_cache = cache_query_result.getTriplesUseIndexS1PPOO(s, p, o);
-
-				if(log_query == true)
-					logging_query("GET USE INDEX FROM CACHE", s, p, o, list_in_cache);
-
-				return list_in_cache;
-			}
-
-			//		bool fS1 = false;
-
-			if(is_query_in_cache is null)
-			{
-				log.trace("S1PPOO query_is_not_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-
-				try
-				{
-					list_query.put(ss1, pp1, oo1, null);
-					f_is_query_stored = true;
-					count_queries_in_cache++;
-
-				} catch(IndexException ex)
-				{
-					// при первом же сбое в кэше, отключим его к чертям собачьим :)
-					cache_query_result = null;
-					list_query = null;
-
-					log.trace("S1PPOO query is not add in cache [list_query]: exception: {}", ex.message);
-				}
-			}
-		}
-
-		bson_buffer bb;
-		bson query;
-
-		bson_buffer_init(&bb);
-
-		if(s !is null)
-			bson_append_string(&bb, "mo/at/acl#tgSsE", p);
-
-		if(p !is null)
-		{
-			bson_append_string(&bb, "mo/at/acl#eId", o);
-		}
-
-		bson_from_buffer(&query, &bb);
-
-		elapsed.start;
-		mongo_cursor* cursor = mongo_find(&conn, ns, &query, null, 0, 0, 0);
-		double time = elapsed.stop;
-
-		if(time * 1000 > 1)
-		{
-			log.trace("slowpoke query, {} ms :", time * 1000);
-			bson_log(&query);
-		}
-
-		//		log.trace("getTriplesUseIndex #2");
-
-		triple_list_element* list = null;
-		triple_list_element* next_element = null;
-		triple_list_element* prev_element = null;
-
-		int length_list = 0;
-
-		while(mongo_cursor_next(cursor))
-		{
-			//			log.trace("getTriplesUseIndex #3");
-			bson_iterator it;
-			bson_iterator_init(&it, cursor.current.data);
-
-			char* ts = null;
-			char* tp = strings + last_used_element_in_strings;
-
-			last_used_element_in_strings += p_rt.length;
-
-			if(last_used_element_in_strings > strings_max_length)
-				throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-			//			char* tp = cast(char*) calloc(byte.sizeof, "mo/at/acl#rt".length + 1);
-			strncpy(tp, p_rt.ptr, p_rt.length);
-			char* to = null;
-
-			while(bson_iterator_next(&it))
-			{
-
-				char* name_key = bson_iterator_key(&it);
-
-				switch(bson_iterator_type(&it))
-				{
-					case bson_type.bson_string:
-					{
-						//						log.trace("getTriplesUseIndex #4");
-						char* value = bson_iterator_string(&it);
-						int len = strlen(value);
-
-						//						printf("(string) \"%s \" %d\n", value, len);
-
-						if(strcmp(name_key, "ss".ptr) == 0)
-						{
-							ts = strings + last_used_element_in_strings;
-
-							last_used_element_in_strings += len + 1;
-							if(last_used_element_in_strings > strings_max_length)
-								throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-							//								ts = cast(char*) calloc(byte.sizeof, len + 1);
-							strcpy(ts, value);
-						}
-						else if(strcmp(name_key, "mo/at/acl#rt".ptr) == 0)
-						{
-							to = strings + last_used_element_in_strings;
-							last_used_element_in_strings += len + 1;
-							if(last_used_element_in_strings > strings_max_length)
-								throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-							//							to = cast(char*) calloc(byte.sizeof, len + 1);
-							strcpy(to, value);
-						}
-						break;
-					}
-
-					default:
-					break;
-				}
-			}
-
-			//			next_element = cast(triple_list_element*) calloc(triple_list_element.sizeof, 1);
-
-			next_element = elements_in_list + last_used_element_in_pull;
-			next_element.next_triple_list_element = null;
-
-			Triple* triple = triples + last_used_element_in_pull;
-
-			last_used_element_in_pull++;
-			if(last_used_element_in_pull > elements_in_list_max_length)
-				throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
-
-			length_list++;
-
-			if(prev_element !is null)
-			{
-				prev_element.next_triple_list_element = next_element;
-			}
-
-			prev_element = next_element;
-			if(list is null)
-			{
-				//				log.trace("getTriplesUseIndex #1 [{}] [{}] [{}]", fromStringz(s), fromStringz(p), fromStringz(o));
-				list = next_element;
-			}
-			//			log.trace ("list={:X8}, next_element={:X8}, last_used_element_in_pull={}", list, next_element, last_used_element_in_pull);  
-
-			//			Triple* triple = cast(Triple*) calloc(Triple.sizeof, 1);
-			triple.s = ts;
-			triple.p = tp;
-			triple.o = to;
-
-			next_element.triple = triple;
-
-			if(f_is_query_stored == true)
-			{
-				//				log.trace("#1");
-				//				S1PPOO_IDX.put (ss1, pp1, oo1, triple);
-				//				log.trace("#2");
-				char[] ss2 = fromStringz(triple.s);
-
-				try
-				{
-					cache_query_result.addTriple(ss2, P1, pp1);
-					cache_query_result.addTriple(ss2, P2, oo1);
-
-					cache_query_result.addTriple(ss2, fromStringz(triple.p), fromStringz(triple.o));
-				} catch(Exception ex)
-				{
-					// при первом же сбое в кэше, отключим его к чертям собачьим :)
-					cache_query_result = null;
-					list_query = null;
-				}
-
-				//				log.trace("S1PPOO cache_query_result.addTriple <{}><{}>\"{}\"", fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
-
-				//				log.trace("check adding ");
-				//				list_in_cache = cache_query_result.getTriplesUseIndexS1PPOO(s, p, o);
-				//				if (list_in_cache !is null)
-				//				{
-				//					log.trace("OK");
-				//				}
-				//				else
-				//				{
-				//					throw new Exception (trioplax.mongodb.TripleStorageMongoDB.stringof ~ " check adding FAIL");					
-				//				}
-
-			}
-
-			//			log.trace("get #9, list[{:X4}], triple[{:X4}], triple.o[{:X4}]", &list, triple, triple.o);
-
-			//			log.trace("get:result <{}> <{}> \"{}\"", ts, tp, to);
-		}
-
-		if(log_query == true)
-			logging_query("GET USE INDEX", s, p, o, list);
-
-		mongo_cursor_destroy(cursor);
-		bson_destroy(&query);
-
-		if(list !is null && f_trace_list_pull == true)
-		{
-
-			//@@@@@
-			/*			
-			 char ss[];
-			 char pp[];
-			 char oo[];
-
-			 if(s !is null)
-			 ss = fromStringz(s);
-
-			 if(p !is null)
-			 pp = fromStringz(p);
-
-			 if(o !is null)
-			 oo = fromStringz(o);
-
-			 if(count_used_lists < max_length_pull)
-			 {
-			 used_lists_pull[list] = "GET USE INDEX S=" ~ ss ~ ", P=" ~ pp ~ ", O=" ~ oo;
-			 //				log.trace("get ({:X4}), length={}", list, used_lists_pull.length);
-
-			 //				query_of_used_lists[count_used_lists] = "GET USE INDEX S=" ~ ss ~ ", P=" ~ pp ~ ", O= " ~ oo;
-			 //				used_lists_pull[count_used_lists] = list;
-			 }
-
-			 if(length_list > max_length_list)
-			 max_length_list = length_list;
-
-			 if(used_lists_pull.length > max_use_pull)
-			 max_use_pull = used_lists_pull.length;
-			 */
-			//		count_used_lists++;
-			count_all_allocated_lists++;
-			//			if(count_all_allocated_lists % 1000 == 0)
-			//				print_stat();
-		}
-
-		return list;
-	}
-
-	public triple_list_element* getTriples(char* s, char* p, char* o)
-	{
-		auto elapsed = new StopWatch();
-		int dummy;
-
-		char ss[];
-		char pp[];
-		char oo[];
-
-		char ss1[];
-		char pp1[];
-		char oo1[];
-
-		if(s !is null)
-		{
-			ss = fromStringz(s);
-			ss1 = ss;
-			//						log.trace("GET TRIPLES #0 len(s)={}", strlen(s));
-		}
-		else
-		{
-			ss1 = "#";
-		}
-
-		if(p !is null)
-		{
-			pp = fromStringz(p);
-			pp1 = pp;
-			//						log.trace("GET TRIPLES #0 len(p)={}", strlen(p));
-		}
-		else
-		{
-			pp1 = "#";
-		}
-
-		if(o !is null)
-		{
-			oo = fromStringz(o);
-			oo1 = oo;
-			//						log.trace("GET TRIPLES #0, len(o)={}", strlen(o));
-		}
-		else
-		{
-			oo1 = "#";
-		}
-
-		total_count_queries++;
-
-		triple_list_element* list_in_cache = null;
-
-		bool f_is_query_stored = false;
-
-		if(list_query !is null)
-		{
-			// проверим, был ли такой запрос закешированн
-			//		log.trace("is_query_in_cache? (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-			//		list_query.f_trace_put = true;
-
-			triple_list_element* is_query_in_cache = list_query.get(ss1.ptr, pp1.ptr, oo1.ptr, dummy);
-			if(is_query_in_cache !is null)
-			{
-				//							log.trace("query_is_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-
-				list_in_cache = cache_query_result.getTriples(s, p, o);
-
-				if(log_query == true)
-					logging_query("GET FROM CACHE", s, p, o, list_in_cache);
-
-				//				log.trace("list_in_cache={:X8}", list_in_cache);
-				return list_in_cache;
-			}
-
-			if(is_query_in_cache is null)
-			{
-				//				log.trace("query_is_not_in_cache (s=[{}], p=[{}], o=[{}])", ss1, pp1, oo1);
-
-				try
-				{
-					list_query.put(ss1, pp1, oo1, null);
-					f_is_query_stored = true;
-					count_queries_in_cache++;
-				} catch(IndexException ex)
-				{
-					// при первом же сбое в кэше, отключим его к чертям собачьим :)
-					cache_query_result = null;
-					list_query = null;
-
-					log.trace("query is not add in cache [list_query]: exception: {}", ex.message);
-				}
-			}
-		}
-		//		log.trace("total_count_queries={}, count_queries_in_cache={}", total_count_queries, count_queries_in_cache);
-
-		//		log.trace("GET TRIPLES <{}> <{}> \"{}\"", ss, pp, oo);
-
-		bson_buffer bb, bb2;
 		bson query;
 		bson fields;
+		bson out_data;
 
-		{
-			bson_buffer_init(&bb2);
-			bson_buffer_init(&bb);
+		bson_init(&query);
+		bson_init(&fields);
 
-			if(s !is null)
-			{
-				bson_append_string(&bb, "ss", s);
-				//							bson_append_int(&bb2, "ss", 1);
-			}
+		if(subject !is null)
+			_bson_append_string(&query, "@", subject);
 
-			if(p !is null && o !is null)
-			{
-				bson_append_string(&bb, p, o);
-				//							bson_append_int(&bb2, "pp", 1);
-			}
+		bson_finish(&query);
+		bson_finish(&fields);
 
-			//		log.trace("GET TRIPLES #4");
-			bson_from_buffer(&query, &bb);
-			bson_from_buffer(&fields, &bb2);
+		if(mongo_find_one(&conn, ns, &query, &fields, &out_data) == 0)
+			res = true;
 
-		}
-
-		//		log.trace("GET TRIPLES #5");
-		triple_list_element* list = null;
-		triple_list_element* next_element = null;
-		triple_list_element* prev_element = null;
-
-		int length_list = 0;
-
-		//		log.trace("GET TRIPLES #6");
-
-		elapsed.start;
-		mongo_cursor* cursor = null;
-		cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
-		double time = elapsed.stop;
-
-		if(time * 1000 > 1)
-		{
-			log.trace("slowpoke query, {} ms :", time * 1000);
-			bson_log(&query);
-		}
-
-		//		log.trace("GET TRIPLES #7");
-		while(mongo_cursor_next(cursor))
-		{
-			bson_iterator it;
-			bson_iterator_init(&it, cursor.current.data);
-
-			char* ts = null;
-			char* tp = null;
-			char* to = null;
-
-			//			log.trace("GET TRIPLES #8");
-
-			while(bson_iterator_next(&it))
-			{
-
-				char* name_key = bson_iterator_key(&it);
-
-				switch(bson_iterator_type(&it))
-				{
-					case bson_type.bson_string:
-
-						char* value = bson_iterator_string(&it);
-						int len = strlen(value);
-
-						//						if(len > 0)
-						{
-							//							log.trace("name_key=[{}], value=[{}], len={}", fromStringz(name_key), fromStringz(value), len);
-
-							if(strcmp(name_key, "ss".ptr) == 0)
-							{
-								//								ts = cast(char*) calloc(byte.sizeof, len + 1);
-								ts = strings + last_used_element_in_strings;
-								last_used_element_in_strings += len + 1;
-								if(last_used_element_in_strings > strings_max_length)
-									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-								strcpy(ts, value);
-							}
-							else if(p !is null && strcmp(name_key, p) == 0)
-							{
-								//								to = cast(char*) calloc(byte.sizeof, len + 1);
-								to = strings + last_used_element_in_strings;
-								last_used_element_in_strings += len + 1;
-								if(last_used_element_in_strings > strings_max_length)
-									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-								strcpy(to, value);
-							}
-							else if(p is null)
-							{
-								//								ts = cast(char*) calloc(byte.sizeof, strlen(s) + 1);
-								ts = strings + last_used_element_in_strings;
-								last_used_element_in_strings += strlen(s) + 1;
-								if(last_used_element_in_strings > strings_max_length)
-									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-								strcpy(ts, s);
-
-								//								tp = cast(char*) calloc(byte.sizeof, strlen(name_key) + 1);
-								tp = strings + last_used_element_in_strings;
-								last_used_element_in_strings += strlen(name_key) + 1;
-								if(last_used_element_in_strings > strings_max_length)
-									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-								strcpy(tp, name_key);
-
-								//								to = cast(char*) calloc(byte.sizeof, len + 1);
-								to = strings + last_used_element_in_strings;
-								last_used_element_in_strings += len + 1;
-								if(last_used_element_in_strings > strings_max_length)
-									throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-								strcpy(to, value);
-
-								if(ts !is null && tp !is null && to !is null)
-								{
-									//									next_element = cast(triple_list_element*) calloc(triple_list_element.sizeof, 1);
-									next_element = elements_in_list + last_used_element_in_pull;
-									next_element.next_triple_list_element = null;
-
-									Triple* triple = triples + last_used_element_in_pull;
-
-									last_used_element_in_pull++;
-									if(last_used_element_in_pull > elements_in_list_max_length)
-									    throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
-
-									if(prev_element !is null)
-									{
-										prev_element.next_triple_list_element = next_element;
-									}
-
-									prev_element = next_element;
-									if(list is null)
-									{
-										//										log.trace("getTriples [{}] [{}] [{}]", fromStringz(s), fromStringz(p), fromStringz(o));
-										list = next_element;
-									}
-
-									//									log.trace ("list={:X8}, next_element={:X8}, last_used_element_in_pull={}", list, next_element, last_used_element_in_pull);  
-									//			log.trace("GET TRIPLES #10");
-
-									//									Triple* triple = cast(Triple*) calloc(Triple.sizeof, 1);
-									//									log.trace ("new triple, ballance={}", ballanse);
-
-									triple.s = ts;
-									triple.p = tp;
-									triple.o = to;
-
-									next_element.triple = triple;
-
-									if(f_is_query_stored == true)
-									{
-										try
-										{
-											cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p),
-													fromStringz(triple.o));
-
-										} catch(IndexException ex)
-										{
-											// при первом же сбое в кэше, отключим его к чертям собачьим :)
-											cache_query_result = null;
-											list_query = null;
-										}
-										//										log.trace("cache_query_result.addTriple");
-									}
-									//			log.trace("get #11, list[{:X4}], triple[{:X4}]", list, triple);
-
-									//									log.trace("get:result <{}> <{}> \"{}\"", fromStringz(ts), fromStringz(tp),
-									//											fromStringz(to));
-								}
-							}
-						}
-
-					break;
-					/*
-					 case bson_type.bson_array:
-
-					 bson_iterator sub_it;
-					 bson_iterator_subiterator(&it, &sub_it);
-
-					 while(bson_iterator_next(&sub_it))
-					 {
-					 switch(bson_iterator_type(&sub_it))
-					 {
-					 case bson_type.bson_string:
-
-					 char* value = bson_iterator_string(&sub_it);
-					 int len = strlen(value);
-
-					 if(len > 0)
-					 {
-					 //										log.trace("sub:name_key=[{}], value=[{}], len={}", fromStringz(name_key),
-					 //												fromStringz(value), len);
-					 }
-
-					 break;
-
-					 default:
-					 break;
-					 }
-
-					 }
-
-					 break;
-					 */
-					default:
-					break;
-				}
-			}
-
-			if(p !is null)
-			{
-				//				tp = cast(char*) calloc(byte.sizeof, strlen(p) + 1);
-				tp = strings + last_used_element_in_strings;
-				last_used_element_in_strings += strlen(p) + 1;
-				if(last_used_element_in_strings > strings_max_length)
-					throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-				strcpy(tp, p);
-
-				if(o !is null)
-				{
-					//					to = cast(char*) calloc(byte.sizeof, strlen(o) + 1);
-					to = strings + last_used_element_in_strings;
-					last_used_element_in_strings += strlen(o) + 1;
-					if(last_used_element_in_strings > strings_max_length)
-						throw new Exception(trioplax.mongodb.TripleStorageMongoDB.stringof ~ " string area is overflow");
-
-					strcpy(to, o);
-				}
-
-				if(ts !is null && tp !is null && to !is null)
-				{
-					//					log.trace("GET TRIPLES #9");
-
-					//					next_element = cast(triple_list_element*) calloc(triple_list_element.sizeof, 1);
-					next_element = elements_in_list + last_used_element_in_pull;
-					next_element.next_triple_list_element = null;
-
-					Triple* triple = triples + last_used_element_in_pull;
-
-					last_used_element_in_pull++;
-					if(last_used_element_in_pull > elements_in_list_max_length)
-					    throw new Exception("pull is overflow, last_used_element_in_pull > elements_in_list_max_length");
-
-					length_list++;
-
-					if(prev_element !is null)
-					{
-						prev_element.next_triple_list_element = next_element;
-					}
-
-					prev_element = next_element;
-					if(list is null)
-					{
-						//						log.trace("getTriples [{}] [{}] [{}]", fromStringz(s), fromStringz(p), fromStringz(o));
-						list = next_element;
-					}
-					//					log.trace ("list={:X8}, next_element={:X8}, last_used_element_in_pull={}", list, next_element, last_used_element_in_pull);  
-
-					//			log.trace("GET TRIPLES #10");
-
-					//					Triple* triple = cast(Triple*) calloc(Triple.sizeof, 1);
-					triple.s = ts;
-					triple.p = tp;
-					triple.o = to;
-
-					//					log.trace ("new triple, ballance={}", ballanse);
-
-					next_element.triple = triple;
-
-					if(f_is_query_stored == true)
-					{
-
-						try
-						{
-							cache_query_result.addTriple(fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
-						} catch(IndexException ex)
-						{
-							// при первом же сбое в кэше, отключим его к чертям собачьим :)
-							cache_query_result = null;
-							list_query = null;
-						}
-						//						log.trace("cache_query_result.addTriple");
-					}
-
-					//			log.trace("get #11, list[{:X4}], triple[{:X4}]", list, triple);
-
-					//					log.trace("get:result <{}> <{}> \"{}\"", fromStringz(ts), fromStringz(tp), fromStringz(to));
-				}
-			}
-		}
-
-		mongo_cursor_destroy(cursor);
 		bson_destroy(&fields);
 		bson_destroy(&query);
+		bson_destroy(&out_data);
 
-		if(log_query == true)
-			logging_query("GET", s, p, o, list);
+		sw.stop();
+		long t = cast(long) sw.peek().usecs;
 
-		if(list !is null && f_trace_list_pull == true)
+		if(t > 50000)
 		{
-			/*
-			 if(count_used_lists < max_length_pull)
-			 {
-			 used_lists_pull[list] = "GET S=" ~ ss ~ ", P=" ~ pp ~ ", O=" ~ oo;
-			 //				log.trace("get ({:X4}), length={}", list, used_lists_pull.length);
-			 //				query_of_used_lists[count_used_lists] = "GET S=" ~ ss ~ ", P=" ~ pp ~ ", O= " ~ oo;
-			 //				used_lists_pull[count_used_lists] = list;
-			 }
-
-			 if(length_list > max_length_list)
-			 max_length_list = length_list;
-
-			 if(used_lists_pull.length > max_use_pull)
-			 max_use_pull = used_lists_pull.length;
-			 */
-			//		count_used_lists++;
-			count_all_allocated_lists++;
-			//			if(count_all_allocated_lists % 1000 == 0)
-			//				print_stat();
+			log.trace("isExistSubject [%s], total time: %d[µs]", subject, t);
 		}
-
-		//		if(f_is_query_stored == true)
-		//		{
-		//			cache_query_result.print_stat();
-		//		}		
-
-		//		log.trace("list={:X8}", list);
-		return list;
+		return res;
 	}
 
-	private void logging_query(char[] op, char* s, char* p, char* o, triple_list_element* list)
+	public bool removeTriple(string s, string p, string o)
 	{
-		char[] a_s = "";
-		char[] a_p = "";
-		char[] a_o = "";
-
-		if(s !is null)
-			a_s = "S";
-
-		if(p !is null)
-			a_p = "P";
-
-		if(o !is null)
-			a_o = "O";
-
-		int count = get_count_form_list_triple(list);
-
-		auto style = File.ReadWriteOpen;
-		style.share = File.Share.Read;
-		style.open = File.Open.Append;
-		File log_file = new File("triple-storage-io", style);
-
-		auto tm = WallClock.now;
-		auto dt = Clock.toDate(tm);
-		log_file.output.write(layout("{:yyyy-MM-dd HH:mm:ss},{} ", tm, dt.time.millis));
-
-		log_file.output.write(op ~ "\n s=[" ~ fromStringz(s) ~ "] p=[" ~ fromStringz(p) ~ "] o=[" ~ fromStringz(o) ~ "] " ~ Integer.format(
-				buff, count) ~ "\n");
-
-		print_list_triple_to_file(log_file, list);
-
-		log_file.close();
-
-	}
-
-	public bool removeTriple(char[] s, char[] p, char[] o)
-	{
-		auto elapsed = new StopWatch();
 		//		log.trace("TripleStorageMongoDB:remove triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\"");
 
 		if(s is null || p is null || o is null)
@@ -1155,74 +725,54 @@ class TripleStorageMongoDB: TripleStorage
 			throw new Exception("remove triple:s is null || p is null || o is null");
 		}
 
-		//		log.trace("remove! #1");
-
-		bson_buffer bb;
 		bson query;
 		bson fields;
-		//		bson record;
 
-		bson_buffer_init(&bb);
-		//		log.trace("remove! #2");
+		bson_init(&query);
+		bson_init(&fields);
 
-		bson_append_string(&bb, "ss", s.ptr);
-		bson_append_string(&bb, p.ptr, o.ptr);
-		bson_from_buffer(&query, &bb);
+		_bson_append_string(&query, "@", s);
+		_bson_append_string(&query, p, o);
 
-		elapsed.start;
-		mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 0, 0, 0);
-		double time = elapsed.stop;
+		bson_finish(&query);
+		bson_finish(&fields);
 
-		if(time * 1000 > 1)
-		{
-			log.trace("slowpoke query, {} ms :", time * 1000);
-			bson_log(&query);
-		}
-
-		//		log.trace("remove! #3");
+		mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, 1, 0, 0);
 
 		if(mongo_cursor_next(cursor))
 		{
 			bson_iterator it;
-			bson_iterator_init(&it, cursor.current.data);
+			bson_iterator_init(&it, &cursor.current);
 			switch(bson_iterator_type(&it))
 			{
-				case bson_type.bson_string:
-
+				case bson_type.BSON_STRING:
 					log.trace("remove! string");
-
 				break;
 
-				case bson_type.bson_array:
-
+				case bson_type.BSON_ARRAY:
 					log.trace("remove! array");
-
 				break;
 
 				default:
 				break;
 			}
 
-		}
-		else
+		} else
 		{
-			throw new Exception("remove triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\": triple not found");
+			throw new Exception(
+					"remove triple <" ~ cast(string) s ~ "><" ~ cast(string) p ~ ">\"" ~ cast(string) o ~ "\": triple not found");
 		}
 
 		mongo_cursor_destroy(cursor);
 		bson_destroy(&fields);
 		bson_destroy(&query);
 
-		//		bson_buffer bb;
-		//		bson b;
 		{
-
 			bson op;
 			bson cond;
 
-			bson_buffer_init(&bb);
-			bson_append_string(&bb, "ss".ptr, s.ptr);
-			bson_from_buffer(&cond, &bb);
+			bson_init(&cond);
+			_bson_append_string(&cond, "@", s);
 
 			//			if(p == HAS_PART)
 			//			{
@@ -1232,218 +782,667 @@ class TripleStorageMongoDB: TripleStorage
 			//				bson_append_int(sub, p.ptr, 1);
 			//				bson_append_finish_object(sub);
 			//			} else
-			{
-				bson_buffer_init(&bb);
-				bson_buffer* sub = bson_append_start_object(&bb, "$unset");
-				bson_append_int(sub, p.ptr, 1);
-				bson_append_finish_object(sub);
-			}
+			//			{
+			bson_init(&op);
+			_bson_append_start_object(&op, "$unset");
+			_bson_append_int(&op, p, 1);
+			bson_append_finish_object(&op);
+			//			}
 
-			bson_from_buffer(&op, &bb);
+			bson_finish(&op);
+			bson_finish(&cond);
+
 			mongo_update(&conn, ns, &cond, &op, 0);
 
 			bson_destroy(&cond);
 			bson_destroy(&op);
 		}
 
-		if(cache_query_result !is null)
-			cache_query_result.removeTriple(s, p, o);
+		//		if(cache_query_result !is null)
+		//			cache_query_result.removeTriple(s, p, o);
 
-		if(log_query == true)
-			logging_query("REMOVE", s.ptr, p.ptr, o.ptr, null);
+		//		if(log_query == true)
+		//			logging_query("REMOVE", s, p, o, null);
 
 		return true;
 	}
 
-	bool f_trace_addTriple = false;
-
-	public int addTriple(char[] s, char[] p, char[] o)
+	public void addTripleToReifedData(Triple reif, string p, string o, byte lang)
 	{
-		//		log.trace("TripleStorageMongoDB:add triple <" ~ s ~ "><" ~ p ~ ">\"" ~ o ~ "\"");
-		bson_buffer bb;
+		//  {SUBJECT:[$reif_subject]}{$set: {'_reif_[$reif_predicate].[$reif_object].[$p]' : [$o]}});
+		Triple newtt = new Triple(reif.S, "_reif_" ~ reif.P ~ "." ~ reif.O ~ "." ~ p ~ "", o, lang);
+
+		addTriple(newtt);
+	}
+
+	public int addTriple(Triple tt)
+	{
+		StopWatch sw;
+		sw.start();
 
 		bson op;
 		bson cond;
 
-		bson_buffer_init(&bb);
-		bson_append_string(&bb, "ss", s.ptr);
-		bson_from_buffer(&cond, &bb);
+		bson_init(&cond);
+		_bson_append_string(&cond, "@", tt.S);
 
-		if((p in predicate_as_multiple) !is null)
+		bson_init(&op);
+
+		if((tt.P in predicate_as_multiple) !is null)
 		{
-			bson_buffer_init(&bb);
-			bson_buffer* sub = bson_append_start_object(&bb, "$addToSet");
-			bson_append_string(sub, p.ptr, o.ptr);
-			bson_append_finish_object(sub);
-			bson_from_buffer(&op, &bb);
-		}
-		else
+			_bson_append_start_object(&op, "$addToSet");
+
+			if(tt.lang == _NONE)
+				_bson_append_string(&op, tt.P, tt.O);
+			else if(tt.lang == _RU)
+				_bson_append_string(&op, tt.P, tt.O ~ "@ru");
+			if(tt.lang == _EN)
+				_bson_append_string(&op, tt.P, tt.O ~ "@en");
+
+			bson_append_finish_object(&op);
+		} else
 		{
-			bson_buffer_init(&bb);
-			bson_buffer* sub = bson_append_start_object(&bb, "$set");
-			bson_append_string(sub, p.ptr, o.ptr);
-			bson_append_finish_object(sub);
-			bson_from_buffer(&op, &bb);
+			if(tt.lang == _NONE)
+			{
+				_bson_append_start_object(&op, "$set");
+				_bson_append_string(&op, tt.P, tt.O);
+			} else if(tt.lang == _RU)
+			{
+				_bson_append_start_object(&op, "$addToSet");
+				_bson_append_string(&op, tt.P, tt.O ~ "@ru");
+			} else if(tt.lang == _EN)
+			{
+				_bson_append_start_object(&op, "$addToSet");
+				_bson_append_string(&op, tt.P, tt.O ~ "@en");
+			}
+
+			bson_append_finish_object(&op);
 		}
 
+		bson_finish(&cond);
+		bson_finish(&op);
+
+		//		log.trace ("query FT %s", bson_to_string (&op));
 		mongo_update(&conn, ns, &cond, &op, 1);
+
+		bson_destroy(&op);
+		
+		// добавим данные для полнотекстового поиска
+		char[][] aaa;
+
+		if((tt.P in fulltext_indexed_predicates) !is null)
+		{
+			bson_init(&op);
+			_bson_append_start_object(&op, "$addToSet");
+
+			//			bson_buffer* sub1 = bson_append_start_object(sub, "_keywords");
+			//			bson_buffer* sub2 = bson_append_start_array(sub1, cast(char*) "$each");			
+
+			char[] l_o = cast(char[]) toLower(tt.O);
+
+			if(l_o.length > 2)
+			{
+				_bson_append_string(&op, "_keywords", cast(string) l_o);
+
+				bson_append_finish_object(&op);
+
+				bson_finish(&op);
+				mongo_update(&conn, ns, &cond, &op, 1);
+
+				for(int ic = 0; ic < l_o.length; ic++)
+				{
+					if((l_o[ic] == '-' && ic == 0) || l_o[ic] == '"' || l_o[ic] == '\'' || (l_o[ic] == '@' && (l_o.length - ic) > 4) || l_o[ic] == '\'' || l_o[ic] == '\\' || l_o[ic] == '.' || l_o[ic] == '+')
+						l_o[ic] = ' ';
+				}
+
+				aaa = split(l_o, " ");
+				
+				bson_destroy(&op);
+
+				bson_init(&op);
+				_bson_append_start_object(&op, "$addToSet");
+				_bson_append_start_object(&op, "_keywords");
+				_bson_append_start_array(&op, "$each");
+
+				foreach(aa; aaa)
+				{
+					if(aa.length > 2)
+					{
+						_bson_append_string(&op, "", cast(string) aa);
+					}
+				}
+
+				bson_append_finish_object(&op);
+				bson_append_finish_object(&op);
+				bson_append_finish_object(&op);
+
+				bson_finish(&op);
+				mongo_update(&conn, ns, &cond, &op, 1);
+				
+				bson_destroy(&op);				
+			}
+		}
+
+		//		bson_from_buffer(&op, &bb);
+		//		log.trace ("query FT %s", bson_to_string (&op));
+		//		mongo_update(&conn, ns, &cond, &op, 1);
+
+		//		Thread.getThis().sleep(100_000);
 
 		bson_destroy(&cond);
 		bson_destroy(&op);
 
-		if(cache_query_result !is null)
+		sw.stop();
+		long t = cast(long) sw.peek().usecs;
+
+		if(t > 300 || trace_msg[1042] == 1)
 		{
-			cache_query_result.addTriple(s, p, o);
+			log.trace("total time add triple: %d[µs]", t);
 		}
 
-		//		log.trace("TripleStorage:add Triple..ok");
-
-		if(log_query == true)
-			logging_query("ADD", s.ptr, p.ptr, o.ptr, null);
+		if(ts_in_mem !is null)
+		{
+			ts_in_mem.addTriple(tt);
+		}
 
 		return 0;
 	}
 
+	public TLIterator getTriples(string s, string p, string o, int MAX_SIZE_READ_RECORDS = 1000)
+	{
+		CacheInfo* ci;
+
+		if(ts_in_mem !is null)
+		{
+			hash_t hash_of_query = get_hash_of_query(s, p, o);
+
+			if(hash_of_query in queryes)
+			{
+				ci = queryes[hash_of_query];
+				ci.count++;
+
+				if(ci.isCached == true)
+					return ts_in_mem.getTriples(s, p, o);
+
+				//				log.trace ("query [<%s><%s><%s>] count requests [%d], count queries = %d", s, p, o, ci.count, queryes.length);
+			} else
+			{
+				CacheInfo* ci = new CacheInfo;
+				ci.count = 1;
+				queryes[hash_of_query] = ci;
+			}
+		}
+
+		//		StopWatch sw;
+		//		sw.start();
+
+		total_count_queries++;
+
+		bool f_is_query_stored = false;
+
+		bson query;
+		bson fields;
+
+		bson_init(&query);
+		bson_init(&fields);
+
+		if(s !is null)
+		{
+			_bson_append_string(&query, "@", s);
+		}
+
+		if(p !is null && o !is null)
+		{
+			_bson_append_string(&query, p, o);
+		}
+
+		//			bson_append_int(&bb2, cast(char*)"@", 1);
+		//			if (p !is null)
+		//			{
+		//				bson_append_stringA(&bb2, p, cast(char[]) "1");
+		//			}
+
+		bson_finish(&query);
+		bson_finish(&fields);
+
+		mongo_cursor* cursor = mongo_find(&conn, ns, &query, &fields, MAX_SIZE_READ_RECORDS, 0, 0);
+		if(cursor is null)
+		{
+			log.trace("ex! getTriples:mongo_find, err=%s", mongo_error_str[conn.err]);
+			throw new Exception("getTriples:mongo_find, err=" ~ mongo_error_str[conn.err]);
+		}
+
+		TLIterator it;
+
+		if(ts_in_mem !is null && need_caching(ci, s, p, o))
+		{
+			// такой запрос кешируем
+			if(ci.isCached == false)
+			{
+				it = new TripleStorageMongoDBIterator(cursor, ts_in_mem);
+
+				ci.isCached = true;
+				count_cached_queryes++;
+				log.trace("caching query [<%s><%s><%s>]", s, p, o);
+				log.trace("query count queries = %d, count_cached_queryes=%d", queryes.length, count_cached_queryes);
+			} else
+			{
+				log.trace("mongodb:getTriples:*^&*&%%&$^%#%@");
+			}
+
+		} else
+		{
+			it = new TripleStorageMongoDBIterator(cursor);
+		}
+
+		bson_destroy(&fields);
+		bson_destroy(&query);
+
+		return it;
+	}
+
+	public TLIterator getTriplesOfMask(ref Triple[] mask_triples, byte[char[]] reading_predicates, int MAX_SIZE_READ_RECORDS = 1000)
+	{
+		if(mask_triples !is null && mask_triples.length == 2 && mask_triples[0].S !is null && mask_triples[0].P is null && mask_triples[0].O is null && mask_triples[1].S is null && mask_triples[1].P !is null && mask_triples[1].O !is null)
+		{
+			mask_triples[0].P = mask_triples[1].P; 
+			mask_triples[0].O = mask_triples[1].O;
+			mask_triples.length = 1;
+//			log.trace("!!!");
+		}
+
+		CacheInfo* ci;
+
+		if(ts_in_mem !is null)
+		{
+			hash_t hash_of_query = get_hash_of_query(mask_triples);
+
+			if(hash_of_query in queryes)
+			{
+				ci = queryes[hash_of_query];
+				ci.count++;
+				//				log.trace ("caching query [%s] count requests [%d], count queries = %d", mask_triples, ci.count, queryes.length);								 				
+			} else
+			{
+				CacheInfo* ci = new CacheInfo;
+				ci.count = 1;
+				queryes[hash_of_query] = ci;
+			}
+		}
+
+		int count_of_reifed_data = 0;
+
+		StopWatch sw;
+		sw.start();
+
+		if(trace_msg[1001] == 1)
+			log.trace("getTriplesOfMask START mask_triples.length=%d\n", mask_triples.length);
+
+		try
+		{
+			List list = new List;
+
+			bson query;
+			bson fields;
+
+			if(mask_triples.length == 0)
+			{
+				if(trace_msg[1022] == 1)
+					log.trace("getTriplesOfMask:mask_triples.length == 0, return");
+
+				return null;
+			}
+			
+			bson_init(&query);
+			bson_init(&fields);
+
+			//			bson_append_stringA(&bb2, cast(char[]) "@", cast(char[]) "1");
+
+			for(short i = 0; i < mask_triples.length; i++)
+			{
+				string s = mask_triples[i].S;
+				string p = mask_triples[i].P;
+				string o = mask_triples[i].O;
+
+				if(trace_msg[1002] == 1)
+				{
+					log.trace("getTriplesOfMask i=%d <%s><%s><%s>", i, s, p, o);
+					if (o is null)
+					    log.trace ("o is null");
+				}
+
+				if(s !is null && s.length > 0)
+				{
+					add_to_query("@", s, &query);
+				}
+
+				if(p !is null && p == "query:fulltext")
+				{
+					add_fulltext_to_query(o, &query);
+				} else if(p !is null /*&& o !is null && o.length > 0*/)
+				{
+					add_to_query(p, o, &query);
+				}
+			}
+
+			reading_predicates["@"] = field.GET;
+
+			//			int count_readed_fields = 0;
+			//			for(int i = 0; i < reading_predicates.keys.length; i++)
+			//			{
+			//				char[] field_name = cast(char[]) reading_predicates.keys[i];
+			//				byte field_type = reading_predicates.values[i];
+			//				bson_append_stringA(&bb2, cast(char[]) field_name, cast(char[]) "1");
+			//
+			//				if(trace_msg[0][3] == 1)
+			//					log.trace("getTriplesOfMask:set out field:%s", field_name);
+			//
+			//				if(field_type == _GET_REIFED)
+			//				{
+			//					bson_append_stringA(&bb2, cast(char[]) "_reif_" ~ field_name, cast(char[]) "1");
+			//
+			//					if(trace_msg[0][4] == 1)
+			//						log.trace("getTriplesOfMask:set out field:%s", "_reif_" ~ field_name);
+			//				}
+			//
+			//				count_readed_fields++;
+			//			}
+
+			bson_finish(&query);
+			bson_finish(&fields);
+
+			if(trace_msg[1005] == 1)
+			{
+				char[] ss = bson_to_string(&query);
+				log.trace("getTriplesOfMask:QUERY:\n %s", ss);
+				//				log.trace("---- readed fields=%s", reading_predicates);
+			}
+
+			StopWatch sw0;
+			sw0.start();
+
+			mongo_cursor* cursor;
+
+			cursor = mongo_find(&conn, ns, &query, &fields, MAX_SIZE_READ_RECORDS, 0, 0);
+			if(cursor is null)
+			{
+				log.trace("ex! getTriplesOfMask:mongo_find, err=%s", mongo_error_str[conn.err]);
+				throw new Exception("getTriplesOfMask:mongo_find, err=" ~ mongo_error_str[conn.err]);
+			}
+
+			sw0.stop();
+
+			long t0 = cast(long) sw0.peek().usecs;
+
+			if(t0 > 5000)
+			{
+				char[] ss = bson_to_string(&query);
+				log.trace("getTriplesOfMask: QUERY:\n %s", ss);
+				log.trace("getTriplesOfMask: mongo_find: %d[µs]", t0);
+			}
+
+			TLIterator it;
+
+			if(ts_in_mem !is null && need_caching(ci, mask_triples))
+			{
+				// такой запрос кешируем
+				if(ci.isCached == false)
+				{
+					it = new TripleStorageMongoDBIterator(cursor, reading_predicates, ts_in_mem);
+
+					ci.isCached = true;
+					count_cached_queryes++;
+					log.trace("caching query [%s]", mask_triples);
+					log.trace("query count queries = %d, count_cached_queryes=%d", queryes.length, count_cached_queryes);
+				} else
+				{
+					log.trace("mongodb:getMaskTriples:*^&*&%%&$^%#%@");
+				}
+
+			} else
+			{
+				it = new TripleStorageMongoDBIterator(cursor, reading_predicates);
+			}
+
+			bson_destroy(&fields);
+			bson_destroy(&query);
+
+			return it;
+		} catch(Exception ex)
+		{
+			log.trace("@exception:%s", ex.msg);
+			throw ex;
+		}
+
+	}
+
+	private void add_to_query(string field_name, string field_value, bson* bb)
+	{
+		if(trace_msg[1030] == 1)
+			log.trace("add_to_query ^^^ field_name = %s, field_value=%s", field_name, field_value);
+
+		bool field_is_multilang = (field_name in multilang_predicates) !is null;
+
+		if(field_value !is null && (field_value[0] == '"' && field_value[1] == '[' || field_value[0] == '['))
+		{
+			if(field_value[0] == '[')
+				field_value = field_value[1 .. field_value.length - 1];
+			else
+				field_value = field_value[2 .. field_value.length - 2];
+
+			string[] values = split(field_value, ",");
+			if(values.length > 0)
+			{
+				_bson_append_start_array(bb, "$or");
+				foreach(val; values)
+				{
+					_bson_append_start_object(bb, "");
+
+					if(field_is_multilang)
+						_bson_append_string(bb, field_name, val ~ "@ru");
+					else
+						_bson_append_string(bb, field_name, val);
+
+					bson_append_finish_object(bb);
+				}
+				bson_append_finish_object(bb);
+			}
+		} else
+		{
+			if(field_is_multilang)
+				_bson_append_string(bb, field_name, field_value ~ "@ru");
+			else
+				_bson_append_string(bb, field_name, field_value);
+		}
+
+		if(trace_msg[1031] == 1)
+			log.trace("add_to_query return");
+	}
+
+	//
 	public void print_stat()
 	{
-		log.trace("TripleStorage:stat: max used pull={}, max length list={}", max_use_pull, max_length_list);
-
-		//		char[][] values = used_lists_pull.values;
-
-		//		for(int i = 0; i < values.length; i++)
-		//		{
-		//			log.trace("used list of query {}", values[i]);
-		//		}
-	}
-
-	public void print_list_triple_to_file(File log_file, triple_list_element* list_iterator)
-	{
-		Triple* triple;
-		if(list_iterator !is null)
-		{
-			while(list_iterator !is null)
-			{
-				//				log.trace("#KKK {:X4} {:X4} {:X4}", list_iterator, *list_iterator, *(list_iterator + 1));
-
-				triple = list_iterator.triple;
-				if(triple !is null)
-				{
-					char[] triple_str = triple_to_string(triple);
-					log_file.output.write(triple_str);
-				}
-
-				list_iterator = list_iterator.next_triple_list_element;
-			}
-		}
-	}
-
-	public void print_list_triple(triple_list_element* list_iterator)
-	{
-		Triple* triple;
-		if(list_iterator !is null)
-		{
-			while(list_iterator !is null)
-			{
-				//				log.trace("#KKK {:X4} {:X4} {:X4}", list_iterator, *list_iterator, *(list_iterator + 1));
-
-				triple = list_iterator.triple;
-				if(triple !is null)
-					print_triple(triple);
-
-				list_iterator = list_iterator.next_triple_list_element;
-			}
-		}
-	}
-
-	public int get_count_form_list_triple(triple_list_element* list_iterator)
-	{
-		int count = 0;
-		Triple* triple;
-		if(list_iterator !is null)
-		{
-			while(list_iterator !is null)
-			{
-				triple = list_iterator.triple;
-				if(triple !is null)
-				{
-					count++;
-				}
-
-				list_iterator = list_iterator.next_triple_list_element;
-
-			}
-		}
-		return count;
-	}
-
-	public void print_triple(Triple* triple)
-	{
-		if(triple is null)
-			return;
-
-		log.trace("triple: <{}><{}>\"{}\"", fromStringz(triple.s), fromStringz(triple.p), fromStringz(triple.o));
-	}
-
-	public char[] triple_to_string(Triple* triple)
-	{
-		if(triple is null)
-			return "";
-
-		return "<" ~ fromStringz(triple.s) ~ "> <" ~ fromStringz(triple.p) ~ "> \"" ~ fromStringz(triple.o) ~ "\".\n";
+		//		log.trace("TripleStorage:stat: max used pull={}, max length list={}", max_use_pull, max_length_list);
 	}
 
 }
 
-void bson_log_raw(char* data, int depth)
+char[] getString(char* s)
 {
-	bson_iterator i;
+	return s ? s[0 .. strlen(s)] : null;
+}
+
+char[] bson_to_string(bson* b)
+{
+	OutBuffer outbuff = new OutBuffer();
+	bson_raw_to_string(b, 0, outbuff);
+	outbuff.write(0);
+	return getString(cast(char*) outbuff.toBytes());
+}
+
+void bson_raw_to_string(bson* b, int depth, OutBuffer outbuff, bson_iterator* ii = null)
+{
+	bson_iterator* i;
 	char* key;
 	int temp;
 	char oidhex[25];
-	bson_iterator_init(&i, data);
 
-	log.trace("{");
-
-	while(bson_iterator_next(&i))
+	if(ii is null)
 	{
-		bson_type t = bson_iterator_type(&i);
+		i = new bson_iterator;
+		bson_iterator_init(i, b);
+	} else
+		i = ii;
+
+	while(bson_iterator_next(i))
+	{
+		bson_type t = bson_iterator_type(i);
 		if(t == 0)
 			break;
-		key = bson_iterator_key(&i);
+
+		key = bson_iterator_key(i);
+
+		for(temp = 0; temp <= depth; temp++)
+			outbuff.write(cast(char[]) "\t");
+
+		outbuff.write(getString(key));
+		outbuff.write(cast(char[]) ":");
 
 		switch(t)
 		{
-			case bson_type.bson_int:
-				log.trace("  {}:{}", fromStringz(cast(char*) key), bson_iterator_int(&i));
+			case bson_type.BSON_INT:
+				outbuff.write(cast(char[]) "int ");
+				outbuff.write(bson_iterator_int(i));
 			break;
-			case bson_type.bson_double:
-				log.trace("  {}:{}", fromStringz(cast(char*) key), bson_iterator_double(&i));
+
+			case bson_type.BSON_DOUBLE:
+				outbuff.write(cast(char[]) "double ");
+				outbuff.write(bson_iterator_double(i));
 			break;
-			case bson_type.bson_bool:
-				log.trace("  {}:{}", fromStringz(cast(char*) key), bson_iterator_bool(&i) ? "true" : "false");
+
+			case bson_type.BSON_BOOL:
+				outbuff.write(cast(char[]) "bool ");
+				outbuff.write((bson_iterator_bool(i) ? cast(char[]) "true" : cast(char[]) "false"));
 			break;
-			case bson_type.bson_string:
-				log.trace("  {}:{}", fromStringz(cast(char*) key), fromStringz(bson_iterator_string(&i)));
+
+			case bson_type.BSON_STRING:
+				outbuff.write(cast(char[]) "string ");
+				outbuff.write(getString(bson_iterator_string(i)));
 			break;
-			case bson_type.bson_null:
-				log.trace("  {}:null", fromStringz(cast(char*) key));
+
+			case bson_type.BSON_REGEX:
+				outbuff.write(cast(char[]) "regex ");
+				outbuff.write(getString(bson_iterator_regex(i)));
 			break;
-			case bson_type.bson_oid:
-				bson_oid_to_string(bson_iterator_oid(&i), cast(char*) &oidhex);
-				log.trace("  {}:{}", fromStringz(cast(char*) key), oidhex);
-			break; //@@@ cast (char*)&oidhex)
-			case bson_type.bson_object:
-			case bson_type.bson_array:
-				bson_log_raw(bson_iterator_value(&i), depth + 1);
+
+			case bson_type.BSON_NULL:
+				outbuff.write(cast(char[]) "null");
 			break;
-			default:
-				log.trace("  {}, can't print type : {}", fromStringz(cast(char*) key), t);
+
+			//			case bson_type.bson_oid:
+			//				bson_oid_to_string(bson_iterator_oid(&i), cast(char*) &oidhex);
+			//				printf("%s", oidhex);
+			//			break; //@@@ cast (char*)&oidhex)
+			case bson_type.BSON_OBJECT:
+				outbuff.write(cast(char[]) "\n{");
+
+				bson_iterator i1;
+				bson_iterator_subiterator(i, &i1);
+				bson_raw_to_string(null, depth + 1, outbuff, &i1);
+				outbuff.write(cast(char[]) "\n}");
+			break;
+
+			case bson_type.BSON_ARRAY:
+				outbuff.write(cast(char[]) "\n[");
+				bson_iterator i1;
+				bson_iterator_subiterator(i, &i1);
+				bson_raw_to_string(null, depth + 1, outbuff, &i1);
+				outbuff.write(cast(char[]) "\n]");
+			break;
+			//			default:
+			//				fprintf(stderr, "can't print type : %d\n", t);
 		}
+		outbuff.write(cast(char[]) "\n");
 	}
-	log.trace("}");
 }
 
-void bson_log(bson* b)
+string fromStringz(char* s)
 {
-	bson_log_raw(b.data, 0);
+	char[] res = s ? s[0 .. strlen(s)] : null;
+	return cast(string) res;
+}
+
+private void add_fulltext_to_query(string fulltext_param, bson* bb)
+{
+	_bson_append_start_object(bb, "_keywords");
+	_bson_append_start_array(bb, "$all");
+
+	string[] values = split(fulltext_param, ",");
+	foreach(val; values)
+	{
+		_bson_append_regex(bb, " ", val, "imx");
+	}
+
+	bson_append_finish_object(bb);
+	bson_append_finish_object(bb);
+}
+
+private hash_t get_hash_of_query(string S, string P, string O)
+{
+	hash_t res = 0;
+
+	if(S !is null)
+		res = hashOf(S.ptr, S.length, 0);
+
+	if(P !is null)
+		res += hashOf(P.ptr, P.length, 0);
+
+	if(O !is null)
+		res += hashOf(O.ptr, O.length, 0);
+
+	return res;
+}
+
+private hash_t get_hash_of_query(ref Triple[] mask_triples)
+{
+	hash_t res = 0;
+
+	for(short i = 0; i < mask_triples.length; i++)
+	{
+		res += mask_triples[i].toHash();
+	}
+
+	return res;
+}
+
+private bool need_caching(CacheInfo* ci, string s, string p, string O)
+{
+//	log.trace("need_caching ? query [<%s><%s><%s>] %d", s, p, O, ci !is null ? ci.count : -1);
+	if(ci !is null && ci.isCached == false && ci.count > 100)
+	{
+		if(O !is null && O[0] == '^')
+			return false;
+
+//		log.trace("yes");
+		return true;
+	}
+	return false;
+}
+
+private bool need_caching(CacheInfo* ci, ref Triple[] mask_triples)
+{
+//	log.trace("need_caching ? query [%s] %d ci=%x", mask_triples, ci !is null ? ci.count : -1, ci);
+	if(ci !is null && ci.isCached == false && ci.count > 100 && mask_triples.length == 1)
+	{
+
+		for(short i = 0; i < mask_triples.length; i++)
+		{
+			if(mask_triples[i].O !is null && mask_triples[i].O[0] == '^')
+				return false;
+		}
+
+//		log.trace("yes");
+		return true;
+	}
+	return false;
 }

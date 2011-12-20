@@ -1,16 +1,12 @@
 // D import file generated from 'src/trioplax/memory/TripleHashMap.d'
 module trioplax.memory.TripleHashMap;
-private import tango.stdc.stdlib;
+private import std.c.stdlib;
 
-private import tango.stdc.stdlib;
+private import std.c.stdlib;
 
-private import tango.stdc.string;
+private import std.c.string;
 
-private import tango.stdc.stringz;
-
-private import tango.io.Stdout;
-
-private import Integer = tango.text.convert.Integer;
+private import std.string;
 
 private import trioplax.Log;
 
@@ -40,7 +36,7 @@ class HashMap
 
     private uint count_element = 0;
 
-    private char[] hashName;
+    private string hashName;
 
     private uint max_count_elements = 1000;
 
@@ -58,18 +54,18 @@ class HashMap
 
     private int triples_area__last = 0;
 
-    this(char[] _hashName, int _max_count_elements, uint _triple_area_length, uint _max_size_short_order)
+    this(string _hashName, int _max_count_elements, uint _triple_area_length, uint _max_size_short_order)
 {
 hashName = _hashName;
 max_size_short_order = _max_size_short_order;
 max_count_elements = _max_count_elements;
-log.trace("*** create HashMap[name={}, max_count_elements={}, max_size_short_order={}, triple_area_length={} ... start",hashName,_max_count_elements,max_size_short_order,_triple_area_length);
+log.trace("*** create HashMap[name=%s, max_count_elements=%s, max_size_short_order=%s, triple_area_length=%s ... start",hashName,_max_count_elements,max_size_short_order,_triple_area_length);
 max_size_reducer = max_count_elements * max_size_short_order + max_size_short_order;
 reducer = new triple_list_header*[](max_size_reducer);
-log.trace("*** HashMap[name={}, reducer.length={}",hashName,reducer.length);
+log.trace("*** HashMap[name=%s, reducer.length=%s",hashName,reducer.length);
 keyz_area = new ubyte[](_triple_area_length);
 keyz_area__last = 0;
-log.trace("*** HashMap[name={}, keyz_area.length={}",hashName,keyz_area.length);
+log.trace("*** HashMap[name=%s, keyz_area.length=%s",hashName,keyz_area.length);
 triples_area = new Triple[](_max_count_elements);
 triples_area__last = 0;
 log.trace("*** create object HashMap... ok");
@@ -79,7 +75,7 @@ log.trace("*** create object HashMap... ok");
 return count_element;
 }
 
-    public char[] getName()
+    public string getName()
 {
 return hashName;
 }
@@ -92,8 +88,12 @@ return hashName;
 
     public void remove_triple_from_list(Triple* removed_triple, char[] s, char[] p, char[] o);
 
-    public void print_triple(char[] header, Triple* triple);
+    public void print_triple(string header, Triple* triple);
 
     public char[] triple_to_string(Triple* triple);
 
+}
+char[] fromStringz(char* s)
+{
+return s ? s[0..strlen(s)] : null;
 }
