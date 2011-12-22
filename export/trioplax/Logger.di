@@ -48,7 +48,7 @@ fclose(ff);
 }
     private void open_new_file();
 
-    void trace_io(bool io, byte* data, int len);
+    void trace_io(bool io, byte* data, ulong len);
     template trace(Char,A...)
 {
 string trace(in Char[] fmt, A args)

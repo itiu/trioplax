@@ -41,7 +41,7 @@ static this()
 }
 
 class TripleStorageMongoDBIterator: TLIterator
-{
+{	
 	mongo_cursor* cursor;
 	byte[char[]] reading_predicates;
 	bool is_query_all_predicates = false;
@@ -112,7 +112,9 @@ class TripleStorageMongoDBIterator: TLIterator
 
 		while(mongo_cursor_next(cursor) == MONGO_OK)
 		{
-			//			log.trace("while(mongo_cursor_next(cursor) == MONGO_OK)");
+			if(trace_msg[1007] == 1)
+					log.trace("while(mongo_cursor_next(cursor) == MONGO_OK)");
+						
 			bson_iterator it;
 			bson_iterator_init(&it, &cursor.current);
 
@@ -709,7 +711,7 @@ class TripleStorageMongoDB: TripleStorage
 		sw.stop();
 		long t = cast(long) sw.peek().usecs;
 
-		if(t > 50000)
+		if(t > 500000)
 		{
 			log.trace("isExistSubject [%s], total time: %d[µs]", subject, t);
 		}
@@ -861,11 +863,11 @@ class TripleStorageMongoDB: TripleStorage
 
 		bson_finish(&cond);
 		bson_finish(&op);
-
-		//		log.trace ("query FT %s", bson_to_string (&op));
+				
 		mongo_update(&conn, ns, &cond, &op, 1);
 
 		bson_destroy(&op);
+		bson_destroy(&cond);
 
 		// добавим данные для полнотекстового поиска
 		char[][] aaa;
@@ -1084,7 +1086,7 @@ class TripleStorageMongoDB: TripleStorage
 		{
 			it = new TripleStorageMongoDBIterator(cursor);
 		}
-
+		
 		bson_destroy(&fields);
 		bson_destroy(&query);
 
@@ -1213,7 +1215,7 @@ class TripleStorageMongoDB: TripleStorage
 			sw0.start();
 
 			mongo_cursor* cursor;
-
+			
 			cursor = mongo_find(&conn, ns, &query, &fields, MAX_SIZE_READ_RECORDS, 0, 0);
 			if(cursor is null)
 			{
@@ -1221,10 +1223,11 @@ class TripleStorageMongoDB: TripleStorage
 				throw new Exception("getTriplesOfMask:mongo_find, err=" ~ mongo_error_str[mongo_get_error(&conn)]);
 			}
 
+			
 			sw0.stop();
 
 			long t0 = cast(long) sw0.peek().usecs;
-
+			
 			if(t0 > 5000)
 			{
 				char[] ss = bson_to_string(&query);

@@ -72,7 +72,7 @@ public class Logger
 		ff = fopen(writer.data.ptr, "aw");
 	}
 	
-	void trace_io(bool io, byte* data, int len)
+	void trace_io(bool io, byte* data, ulong len)
 	{		
 		string str_io;
 
@@ -105,7 +105,14 @@ public class Logger
 
 		fwrite (cast(char*)writer.data , 1 , writer.data.length , ff);
 		
-		fwrite (data , 1 , len - 1, ff);
+                version (X86_64)
+                {
+                    fwrite (data , 1 , len - 1, ff);
+                }
+                else
+                {
+                    fwrite (data , 1 , cast(uint)len - 1, ff);
+                }
 
 		fputc('\r', ff);
 		
