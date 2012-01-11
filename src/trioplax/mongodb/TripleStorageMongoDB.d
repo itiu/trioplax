@@ -865,7 +865,7 @@ class TripleStorageMongoDB: TripleStorage
 		//		log.trace ("query FT %s", bson_to_string (&op));
 		mongo_update(&conn, ns, &cond, &op, 1);
 
-		bson_destroy(&op);
+//		bson_destroy(&op);
 		
 		// добавим данные для полнотекстового поиска
 		char[][] aaa;
