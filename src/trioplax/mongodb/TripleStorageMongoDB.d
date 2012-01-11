@@ -867,7 +867,7 @@ class TripleStorageMongoDB: TripleStorage
 		mongo_update(&conn, ns, &cond, &op, 1);
 
 		bson_destroy(&op);
-		bson_destroy(&cond);
+//		bson_destroy(&cond);
 
 		// добавим данные для полнотекстового поиска
 		char[][] aaa;
