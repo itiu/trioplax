@@ -4,7 +4,6 @@ private import std.array;
 private import std.stdio;
 private import std.array: appender;
 private import std.format;
-import rt.util.hash;
 
 private import trioplax.Logger;
 
@@ -57,24 +56,6 @@ class Triple
 //		log.trace ("create triple %s", this);
 	}
 
-
-	override hash_t toHash()
-	{
-		hash_t hh = 0;
-
-		if(S !is null)
-			hh += hashOf(S.ptr, S.length, 0);
-
-		if(P !is null)
-			hh += hashOf(P.ptr, P.length, 0);
-
-		if(O !is null)
-			hh += hashOf(O.ptr, O.length, 0);
-
-		return hh;
-	}
-	
-	
 	~this ()
 	{
 //		log.trace ("destroy triple %s", this);

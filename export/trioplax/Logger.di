@@ -46,7 +46,27 @@ open_new_file();
 {
 fclose(ff);
 }
-    private void open_new_file();
+    private void open_new_file()
+{
+count = 0;
+_time tt = time(null);
+tm* ptm = localtime(&tt);
+int year = ptm.tm_year + 1900;
+int month = ptm.tm_mon + 1;
+int day = ptm.tm_mday;
+int hour = ptm.tm_hour;
+int minute = ptm.tm_min;
+int second = ptm.tm_sec;
+auto writer = appender!(string)();
+formattedWrite(writer,"%s_%04d-%02d-%02d_%02d:%02d:%02d.%s",trace_logfilename,year,month,day,hour,minute,second,ext);
+writer.put(cast(char)0);
+if (ff !is null)
+{
+fflush(ff);
+fclose(ff);
+}
+ff = fopen(writer.data.ptr,"aw");
+}
 
     void trace_io(bool io, byte* data, ulong len);
     template trace(Char,A...)

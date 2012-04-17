@@ -1,6 +1,5 @@
-module trioplax.memory.ComplexKeys;
+module trioplax.mongodb.ComplexKeys;
 
-import rt.util.hash;
 import std.string;
 import std.stdio;
 
@@ -49,25 +48,6 @@ class FKeys
 		else
 			return;
 		count = 4;
-	}
-
-	override hash_t toHash()
-	{
-		hash_t hh = 0;
-
-		if(count > 0 && key1 !is null)
-			hh += hashOf(key1.ptr, key1.length, 0);
-
-		if(count > 1 && key2 !is null)
-			hh += hashOf(key2.ptr, key2.length, 0);
-
-		if(count > 2 && key3 !is null)
-			hh += hashOf(key3.ptr, key3.length, 0);
-
-		if(count > 3 && key4 !is null)
-			hh += hashOf(key4.ptr, key4.length, 0);
-		
-		return hh;
 	}
 
 	override bool opEquals(Object o)

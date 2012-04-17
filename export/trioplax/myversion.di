@@ -1,8 +1,8 @@
 // D import file generated from 'myversion.d'
 module myversion;
-public static char[] author = cast(char[])"itiu";
+public static char[] author = cast(char[])"Itiu";
 
 
-public static char[] hash = cast(char[])"1d5b40a";
+public static char[] hash = cast(char[])"44e17f9";
 
 
