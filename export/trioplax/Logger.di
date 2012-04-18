@@ -81,7 +81,7 @@ int hour = ptm.tm_hour;
 int minute = ptm.tm_min;
 int second = ptm.tm_sec;
 auto now = Clock.currTime();
-auto milliseconds = now.fracSec;
+int usecs = now.fracSec.usecs;
 count++;
 if (prev_time > 0 && day != prev_time || count > 1000000)
 {
@@ -89,9 +89,9 @@ open_new_file();
 }
 auto writer = appender!(string)();
 if (src.length > 0)
-formattedWrite(writer,"[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ",year,month,day,hour,minute,second,milliseconds,src);
+formattedWrite(writer,"[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ",year,month,day,hour,minute,second,usecs,src);
 else
-formattedWrite(writer,"[%04d-%02d-%02d %02d:%02d:%02d.%03d] ",year,month,day,hour,minute,second,milliseconds);
+formattedWrite(writer,"[%04d-%02d-%02d %02d:%02d:%02d.%03d] ",year,month,day,hour,minute,second,usecs);
 formattedWrite(writer,fmt,args);
 writer.put(cast(char)0);
 fputs(cast(char*)writer.data,ff);

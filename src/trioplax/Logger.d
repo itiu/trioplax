@@ -90,7 +90,7 @@ public class Logger
 		int minute = ptm.tm_min;
 		int second = ptm.tm_sec;
 		auto now = Clock.currTime();
-		auto milliseconds = now.fracSec;
+		int usecs = now.fracSec.usecs;
 
 		count ++;
 
@@ -101,7 +101,7 @@ public class Logger
 		
 		auto writer = appender!string();
 
-		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d]\n%s\n", year, month, day, hour, minute, second, milliseconds, str_io);
+		formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d]\n%s\n", year, month, day, hour, minute, second, usecs, str_io);
 
 		fwrite (cast(char*)writer.data , 1 , writer.data.length , ff);
 		
@@ -132,7 +132,7 @@ public class Logger
 		int minute = ptm.tm_min;
 		int second = ptm.tm_sec;
 		auto now = Clock.currTime();
-		auto milliseconds = now.fracSec;
+		int usecs = now.fracSec.usecs;
 
 		count++;
 		if (prev_time > 0 && day != prev_time || count > 1_000_000)
@@ -144,9 +144,9 @@ public class Logger
 		auto writer = appender!string();
 
 		if (src.length > 0)
-		    formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ", year, month, day, hour, minute, second, milliseconds, src);
+		    formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] [%s] ", year, month, day, hour, minute, second, usecs, src);
 		else
-		    formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] ", year, month, day, hour, minute, second, milliseconds);
+		    formattedWrite(writer, "[%04d-%02d-%02d %02d:%02d:%02d.%03d] ", year, month, day, hour, minute, second, usecs);
 
 		formattedWrite(writer, fmt, args);
 		writer.put(cast(char) 0);
