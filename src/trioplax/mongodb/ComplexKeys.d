@@ -90,7 +90,7 @@ class FKeys
 	override int opCmp(Object o)
 	{
 		bool res;
-		
+
 		FKeys f = cast(FKeys) o;
 
 		if(count > 0)
@@ -108,8 +108,8 @@ class FKeys
 		if(res == true)
 			return 0;
 
-		int tres = 0; 
-		
+		int tres = 0;
+
 		if(count > 0)
 			tres += std.string.cmp(key1, f.key1);
 
@@ -128,5 +128,41 @@ class FKeys
 	override string toString()
 	{
 		return cast(string) ("{" ~ key1 ~ "}{" ~ key2 ~ "}{" ~ key3 ~ "}{" ~ key4 ~ "}");
+	}
+
+	override hash_t toHash()
+	{
+		hash_t hash;
+
+		foreach(char c; key1)
+			hash = (hash * 9) + c;
+
+		hash_t hh = 0;
+
+		if(count > 0 && key1 !is null)
+		{
+			foreach(char c; key1)
+				hash = (hash * 9) + c;
+		}
+
+		if(count > 1 && key2 !is null)
+		{
+			foreach(char c; key2)
+				hash = (hash * 9) + c;
+		}
+
+		if(count > 2 && key3 !is null)
+		{
+			foreach(char c; key3)
+				hash = (hash * 9) + c;
+		}
+
+		if(count > 3 && key4 !is null)
+		{
+			foreach(char c; key4)
+				hash = (hash * 9) + c;
+		}
+
+		return hash;
 	}
 }

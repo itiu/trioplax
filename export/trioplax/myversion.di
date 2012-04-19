@@ -3,6 +3,6 @@ module myversion;
 public static char[] author = cast(char[])"Itiu";
 
 
-public static char[] hash = cast(char[])"6c1424e";
+public static char[] hash = cast(char[])"3be6266";
 
 
