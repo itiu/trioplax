@@ -5,7 +5,7 @@ private import std.format;
 private import std.c.stdio;
 
 import std.datetime;
-import std.array;
+import std.array : appender;
 private import std.stdio;
 
 private import std.datetime;

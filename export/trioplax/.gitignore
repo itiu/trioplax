@@ -1,8 +1,0 @@
-/Hash.di
-/HashMap.di
-/IndexException.di
-/Log.di
-/TripleStorage.di
-/TripleStorageMemory.di
-/TripleStorageMongoDB.di
-/triple.di

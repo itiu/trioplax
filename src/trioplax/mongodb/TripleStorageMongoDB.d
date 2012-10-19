@@ -9,10 +9,10 @@ private import std.c.string;
 private import std.datetime;
 private import std.stdio;
 private import std.outbuffer;
+import std.conv;
+
 private import core.stdc.stdio;
 private import core.thread;
-
-private import Integer = tango.text.convert.Integer;
 
 private import trioplax.triple;
 private import trioplax.TripleStorage;
@@ -318,17 +318,7 @@ class TripleStorageMongoDBIterator: TLIterator
 									{
 										count_of_reifed_data++; //???
 
-										char[] reifed_data_subj = new char[7];
-										reifed_data_subj[0] = '_';
-										reifed_data_subj[1] = ':';
-										reifed_data_subj[2] = 'R';
-										reifed_data_subj[3] = '_';
-										reifed_data_subj[4] = '_';
-										reifed_data_subj[5] = '_';
-										reifed_data_subj[6] = 0;
-
-										Integer.format(reifed_data_subj, count_of_reifed_data, cast(char[]) "X2");
-
+										string reifed_data_subj = "_:R_" ~ text (count_of_reifed_data);
 										//										log.trace("TripleStorageMongoDBIterator: # <, count_of_reifed_data=%s", reifed_data_subj);										
 
 										string _name_key_L1 = fromStringz(bson_iterator_key(&i_L1));
@@ -369,7 +359,7 @@ class TripleStorageMongoDBIterator: TLIterator
 													//	r_triple.O = _name_val_L2;
 													//	r_triple.S = cast(immutable) reifed_data_subj;
 
-													Triple r_triple = new Triple(cast(string) reifed_data_subj,
+													Triple r_triple = new Triple(reifed_data_subj,
 															_name_key_L2, _name_val_L2);
 													//													log.trace("++ triple %s", r_triple);
 
@@ -404,7 +394,7 @@ class TripleStorageMongoDBIterator: TLIterator
 																				bson_iterator_string(&i_1));
 
 																Triple r_triple = new Triple(
-																		cast(string) reifed_data_subj, _name_key_L2,
+																		reifed_data_subj, _name_key_L2,
 																		A_value);
 
 																if(last_r_triples >= r_triples.length)
@@ -1221,6 +1211,7 @@ void bson_raw_to_string(bson* b, int depth, OutBuffer outbuff, bson_iterator* ii
 		outbuff.write(getString(key));
 		outbuff.write(cast(char[]) ":");
 
+
 		switch(t)
 		{
 			case bson_type.BSON_INT:
@@ -1272,7 +1263,9 @@ void bson_raw_to_string(bson* b, int depth, OutBuffer outbuff, bson_iterator* ii
 				bson_raw_to_string(null, depth + 1, outbuff, &i1);
 				outbuff.write(cast(char[]) "\n]");
 			break;
-			//			default:
+			
+			default:
+			break;
 			//				fprintf(stderr, "can't print type : %d\n", t);
 		}
 		outbuff.write(cast(char[]) "\n");
