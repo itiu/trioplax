@@ -548,7 +548,7 @@ class TripleStorageMongoDB: TripleStorage
 			log.trace("failed to connect to mongodb, err=%s", mongo_error_str[mongo_get_error(&conn)]);
 		    }
 		    limit_count_attempt --;
-                    core.thread.Thread.sleep(dur!("seconds")(1));                                        		    
+                    core.thread.Thread.sleep(dur!("seconds")(5));                                        		    
 		}    
 		if(err != MONGO_OK)
 		{
