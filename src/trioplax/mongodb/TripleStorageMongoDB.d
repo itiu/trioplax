@@ -532,12 +532,30 @@ class TripleStorageMongoDB: TripleStorage
 
 		log.trace("connect to mongodb...");
 
-		int err = mongo_connect(&conn, cast(char*) toStringz(host), port);
+		int limit_count_attempt = 10;
+
+		int err = 0;
+
+		while (limit_count_attempt > 1)
+		{
+		    err = mongo_connect(&conn, cast(char*) toStringz(host), port);
+		    if(err == MONGO_OK)
+		    {
+			break;
+		    }
+		    else
+		    {
+			log.trace("failed to connect to mongodb, err=%s", mongo_error_str[mongo_get_error(&conn)]);
+		    }
+		    limit_count_attempt --;
+                    core.thread.Thread.sleep(dur!("seconds")(1));                                        		    
+		}    
 		if(err != MONGO_OK)
 		{
-			log.trace("failed to connect to mongodb, err=%s", mongo_error_str[mongo_get_error(&conn)]);
-			throw new Exception("failed to connect to mongodb");
+		    log.trace("failed to connect to mongodb, err=%s", mongo_error_str[mongo_get_error(&conn)]);
+		    throw new Exception("failed to connect to mongodb");
 		}
+		    
 		log.trace("connect to mongodb sucessful");
 		mongo_set_op_timeout(&conn, 1000);
 	}
